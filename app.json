@@ -1,0 +1,86 @@
+{
+  "expo": {
+    "name": "BascyBros",
+    "slug": "bascybrosmobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "bascybrosmobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "xyz.bascybros.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow BascyBros to take photos of your notes, screenshots, and CTF challenges.",
+        "NSPhotoLibraryUsageDescription": "Allow BascyBros to attach images from your photo library.",
+        "NSPhotoLibraryAddUsageDescription": "Allow BascyBros to save images to your photo library."
+      }
+    },
+    "android": {
+      "package": "xyz.bascybros.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow BascyBros to attach images from your photo library.",
+          "cameraPermission": "Allow BascyBros to take photos of your notes, screenshots, and CTF challenges."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8839bb94-a465-4a11-991d-99745b3d1fec"
+      }
+    },
+    "owner": "basinasgeorgeee",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8839bb94-a465-4a11-991d-99745b3d1fec"
+    }
+  }
+}

@@ -3,99 +3,173 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native"
 import { Link, useRouter } from "expo-router"
-import { useSignUp } from "@clerk/expo"
+import { useSignUp, useSSO } from "@clerk/expo"
+import * as WebBrowser from "expo-web-browser"
 
+import {
+  AuthDivider,
+  AuthErrorText,
+  AuthHeader,
+  authStyles,
+} from "@/components/auth/primitives"
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { Screen } from "@/components/ui/screen"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, usePalette } from "@/lib/theme"
+import { checkEmailAllowed } from "@/lib/check-email"
+import { describeClerkError } from "@/lib/clerk-errors"
 
-import { describeClerkError } from "./sign-in"
+WebBrowser.maybeCompleteAuthSession()
+
+type Step = "email" | "password" | "code"
 
 export default function SignUpScreen() {
   const palette = usePalette()
   const router = useRouter()
-  const { signUp } = useSignUp()
+  const { signUp, errors, fetchStatus } = useSignUp()
+  const { startSSOFlow } = useSSO()
 
+  const [step, setStep] = useState<Step>("email")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
-  const [pendingVerification, setPendingVerification] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
 
-  async function handleStart() {
+  const loading = fetchStatus === "fetching"
+
+  function reset() {
+    setStep("email")
+    setPassword("")
+    setCode("")
+    setError("")
+  }
+
+  async function finalize() {
     if (!signUp) return
-    if (!email.trim() || password.length < 8) {
-      Alert.alert(
-        "Missing fields",
-        "Enter your email and a password with at least 8 characters."
+    await signUp.finalize({
+      navigate: () => {
+        router.replace("/(tabs)/notes")
+        return Promise.resolve()
+      },
+    })
+  }
+
+  async function handleEmailSubmit() {
+    if (!signUp) return
+    setError("")
+    const trimmed = email.trim()
+    if (!trimmed) {
+      setError("Enter your email.")
+      return
+    }
+
+    const allow = await checkEmailAllowed(trimmed)
+    if (!allow.allowed) {
+      setError(
+        allow.reason ?? "Access restricted. This email is not on the allowlist."
       )
       return
     }
-    setBusy(true)
-    try {
-      const created = await signUp.password({
-        emailAddress: email.trim(),
-        password,
-      })
-      if (created.error) {
-        Alert.alert("Sign up failed", describeClerkError(created.error))
+
+    const result = await signUp.create({ emailAddress: trimmed })
+    if (result.error) {
+      setError(describeClerkError(result.error))
+      return
+    }
+
+    if (signUp.status === "complete") {
+      await finalize()
+      return
+    }
+
+    if (signUp.status === "missing_requirements") {
+      if (signUp.missingFields.includes("password")) {
+        setStep("password")
         return
       }
       const sent = await signUp.verifications.sendEmailCode()
       if (sent.error) {
-        Alert.alert(
-          "Couldn't send code",
-          describeClerkError(sent.error, "Try again in a moment.")
-        )
+        setError(describeClerkError(sent.error, "Couldn't send code."))
         return
       }
-      setPendingVerification(true)
-    } catch (error) {
-      Alert.alert("Sign up failed", describeClerkError(error))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleVerify() {
-    if (!signUp) return
-    if (!code.trim()) {
-      Alert.alert("Code required", "Enter the 6-digit code from your email.")
+      setStep("code")
       return
     }
-    setBusy(true)
+
+    const sent = await signUp.verifications.sendEmailCode()
+    if (sent.error) {
+      setError(describeClerkError(sent.error, "Couldn't send code."))
+      return
+    }
+    setStep("code")
+  }
+
+  async function handlePasswordSubmit() {
+    if (!signUp) return
+    setError("")
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.")
+      return
+    }
+    const result = await signUp.password({ password })
+    if (result.error) {
+      setError(describeClerkError(result.error))
+      return
+    }
+    if (signUp.status === "complete") {
+      await finalize()
+      return
+    }
+    const sent = await signUp.verifications.sendEmailCode()
+    if (sent.error) {
+      setError(describeClerkError(sent.error, "Couldn't send code."))
+      return
+    }
+    setStep("code")
+  }
+
+  async function handleCodeSubmit() {
+    if (!signUp) return
+    setError("")
+    if (!code.trim()) {
+      setError("Enter the 6-digit code.")
+      return
+    }
+    const result = await signUp.verifications.verifyEmailCode({
+      code: code.trim(),
+    })
+    if (result.error) {
+      setError(describeClerkError(result.error))
+      return
+    }
+    if (signUp.status === "complete") {
+      await finalize()
+      return
+    }
+    setError("Unexpected sign-up status. Please try again.")
+  }
+
+  async function handleGoogle() {
+    setError("")
     try {
-      const verified = await signUp.verifications.verifyEmailCode({
-        code: code.trim(),
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl: "bascybrosmobile://oauth-callback",
       })
-      if (verified.error) {
-        Alert.alert("Invalid code", describeClerkError(verified.error))
-        return
-      }
-      if (signUp.status === "complete") {
-        await signUp.finalize({
-          navigate: () => {
-            router.replace("/(tabs)/notes")
-            return Promise.resolve()
-          },
-        })
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId })
+        router.replace("/(tabs)/notes")
       } else {
-        Alert.alert(
-          "Verification incomplete",
-          "Additional fields are required. Try signing in instead."
-        )
+        Alert.alert("Google sign-up incomplete", "Additional steps are required.")
       }
-    } catch (error) {
-      Alert.alert("Verification failed", describeClerkError(error))
-    } finally {
-      setBusy(false)
+    } catch (err) {
+      setError(describeClerkError(err, "Google sign-up failed."))
     }
   }
 
@@ -106,115 +180,162 @@ export default function SignUpScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={authStyles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: palette.text }]}>Create account</Text>
-            <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-              Your email must be on the BascyBros allowlist.
-            </Text>
-          </View>
+          {step === "email" && (
+            <>
+              <AuthHeader
+                title="Create your account"
+                color={palette.text}
+                mutedColor={palette.textMuted}
+                subtitle={
+                  <>
+                    Already have an account?{" "}
+                    <Link
+                      href="/sign-in"
+                      style={{ color: palette.link, fontWeight: "600" }}
+                    >
+                      Sign in
+                    </Link>
+                  </>
+                }
+              />
 
-          {pendingVerification ? (
-            <View style={styles.form}>
-              <Text style={[styles.label, { color: palette.text }]}>
-                Enter the 6-digit code we just emailed you.
-              </Text>
-              <AppTextInput
-                placeholder="123456"
-                value={code}
-                onChangeText={setCode}
-                keyboardType="number-pad"
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={6}
-              />
-              <AppButton
-                title="Verify email"
-                size="lg"
-                fullWidth
-                loading={busy}
-                onPress={handleVerify}
-              />
-            </View>
-          ) : (
-            <View style={styles.form}>
-              <AppTextInput
-                placeholder="you@example.com"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                value={email}
-                onChangeText={setEmail}
-              />
-              <AppTextInput
-                placeholder="Password (min 8 chars)"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="newPassword"
-                value={password}
-                onChangeText={setPassword}
-              />
-              <AppButton
-                title="Create account"
-                size="lg"
-                fullWidth
-                loading={busy}
-                onPress={handleStart}
-              />
-            </View>
+              <View style={authStyles.form}>
+                <AppTextInput
+                  placeholder="name@example.com"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!loading}
+                />
+                <AuthErrorText local={error} globals={errors?.global} color={palette.danger} />
+                <AppButton
+                  title="Continue"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  onPress={handleEmailSubmit}
+                />
+                <AuthDivider
+                  borderColor={palette.border}
+                  mutedColor={palette.textMuted}
+                  backgroundColor={palette.background}
+                />
+                <AppButton
+                  title="Continue with Google"
+                  variant="outline"
+                  size="lg"
+                  fullWidth
+                  onPress={handleGoogle}
+                />
+              </View>
+            </>
           )}
 
-          <View style={styles.footer}>
-            <Text style={{ color: palette.textMuted, fontSize: FontSize.sm }}>
-              Already have an account?{" "}
-            </Text>
-            <Link
-              href="/sign-in"
-              style={{ color: palette.link, fontSize: FontSize.sm, fontWeight: "600" }}
-            >
-              Sign in
-            </Link>
-          </View>
+          {step === "password" && (
+            <>
+              <AuthHeader
+                title="Set your password"
+                color={palette.text}
+                mutedColor={palette.textMuted}
+                subtitle={
+                  <>
+                    Creating account for{" "}
+                    <Text style={{ color: palette.text, fontWeight: "600" }}>{email}</Text>
+                  </>
+                }
+              />
+
+              <View style={authStyles.form}>
+                <AppTextInput
+                  placeholder="Password (min 8 chars)"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!loading}
+                />
+                <AuthErrorText local={error} globals={errors?.global} color={palette.danger} />
+                <AppButton
+                  title="Continue"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  onPress={handlePasswordSubmit}
+                />
+              </View>
+
+              <Pressable onPress={reset} hitSlop={6}>
+                <Text
+                  style={{
+                    color: palette.textMuted,
+                    fontSize: FontSize.sm,
+                    textAlign: "center",
+                  }}
+                >
+                  Back
+                </Text>
+              </Pressable>
+            </>
+          )}
+
+          {step === "code" && (
+            <>
+              <AuthHeader
+                title="Verify your email"
+                color={palette.text}
+                mutedColor={palette.textMuted}
+                subtitle={
+                  <>
+                    A code was sent to{" "}
+                    <Text style={{ color: palette.text, fontWeight: "600" }}>{email}</Text>
+                  </>
+                }
+              />
+
+              <View style={authStyles.form}>
+                <AppTextInput
+                  placeholder="123456"
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={6}
+                  value={code}
+                  onChangeText={setCode}
+                  editable={!loading}
+                />
+                <AuthErrorText local={error} globals={errors?.global} color={palette.danger} />
+                <AppButton
+                  title="Verify"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  onPress={handleCodeSubmit}
+                />
+              </View>
+
+              <Pressable onPress={reset} hitSlop={6}>
+                <Text
+                  style={{
+                    color: palette.textMuted,
+                    fontSize: FontSize.sm,
+                    textAlign: "center",
+                  }}
+                >
+                  Back
+                </Text>
+              </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    padding: Spacing.lg,
-    justifyContent: "center",
-    gap: Spacing.xl,
-  },
-  header: {
-    gap: Spacing.sm,
-    alignItems: "center",
-  },
-  title: {
-    fontSize: FontSize.title,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: FontSize.md,
-    textAlign: "center",
-  },
-  form: {
-    gap: Spacing.md,
-  },
-  label: {
-    fontSize: FontSize.sm,
-    fontWeight: "500",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-})

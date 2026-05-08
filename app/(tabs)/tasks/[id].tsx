@@ -22,7 +22,7 @@ import { TASK_STATUS_LABELS, TASK_STATUSES, type Task, type TaskStatus } from "@
 
 const STATUS_OPTIONS = TASK_STATUSES.map((s) => ({
   value: s,
-  label: TASK_STATUS_LABELS[s],
+  label: s === "in_progress" ? "In Prog." : TASK_STATUS_LABELS[s],
 }))
 
 export default function TaskDetailScreen() {
@@ -180,8 +180,9 @@ export default function TaskDetailScreen() {
 
             <Segmented
               options={STATUS_OPTIONS}
-              value={task.status}
+              value={status}
               onChange={(next) => {
+                if (setTaskStatus.isPending) return
                 setStatus(next)
                 setTaskStatus.mutate(next)
               }}

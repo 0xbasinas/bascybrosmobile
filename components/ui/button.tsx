@@ -36,12 +36,12 @@ export function AppButton({
   const isDisabled = disabled || loading
 
   const sizeStyle = {
-    sm: { paddingVertical: 6, paddingHorizontal: 12, minHeight: 32 },
-    md: { paddingVertical: 10, paddingHorizontal: 14, minHeight: 40 },
-    lg: { paddingVertical: 14, paddingHorizontal: 18, minHeight: 48 },
+    sm: { paddingVertical: 7, paddingHorizontal: 12, minHeight: 36, minWidth: 84 },
+    md: { paddingVertical: 11, paddingHorizontal: 16, minHeight: 44, minWidth: 96 },
+    lg: { paddingVertical: 13, paddingHorizontal: 18, minHeight: 50, minWidth: 112 },
   }[size]
 
-  const fontSize = size === "sm" ? FontSize.sm : size === "lg" ? FontSize.lg : FontSize.md
+  const fontSize = size === "sm" ? FontSize.sm : size === "lg" ? FontSize.md : FontSize.md
 
   const variantStyle: ViewStyle =
     variant === "primary"
@@ -98,5 +98,8 @@ const styles = StyleSheet.create({
   },
   text: {
     fontWeight: "600",
+    lineHeight: 20,
+    textAlign: "center",
+    includeFontPadding: false,
   },
 })

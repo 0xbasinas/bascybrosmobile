@@ -83,7 +83,26 @@ lib/
 
 ## Building with EAS
 
-`eas.json` already has `development`, `preview`, and `production` profiles. Run:
+`eas.json` includes these profiles:
+
+- `development` - dev client for physical devices (internal distribution)
+- `development-simulator` - dev client for iOS simulator
+- `preview` - installable APK (Android) / simulator build (iOS) for QA
+- `production` - store-ready builds (`.aab` on Android, release build on iOS)
+
+### Common build commands
+
+Using npm scripts:
+
+```bash
+npm run eas:build:dev:android
+npm run eas:build:dev:ios
+npm run eas:build:preview:android
+npm run eas:build:prod:android
+npm run eas:build:prod:ios
+```
+
+Direct EAS commands:
 
 ```bash
 eas build --profile development --platform ios
@@ -91,3 +110,38 @@ eas build --profile production --platform all
 ```
 
 The Expo project ID lives in `app.json` under `extra.eas.projectId`.
+
+## GitHub Actions APK release (local Gradle)
+
+The repository includes a workflow at `.github/workflows/android-release-apk.yml` that builds a signed Android release APK using Expo prebuild + Gradle on GitHub-hosted runners.
+
+### Triggers
+
+- Manual run from the Actions tab (`workflow_dispatch`)
+- Automatic run on pushed tags matching `v*` (for example: `v1.0.0`)
+
+### Required repository secrets
+
+- `ANDROID_KEYSTORE_BASE64` - base64-encoded `.jks` keystore file
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Example command to produce `ANDROID_KEYSTORE_BASE64` locally:
+
+```bash
+base64 < your-release-key.jks | tr -d '\n'
+```
+
+### Artifact output
+
+After a successful workflow run, download the artifact named `bascybrosmobile-release-apk` from the run summary. The generated file is:
+
+- `android/app/build/outputs/apk/release/app-release.apk`
+
+## Local dev ergonomics
+
+- `npm run start:dev-client` - Metro for installed dev client builds
+- `npm run prebuild` - regenerate native projects without wiping local Android SDK wiring
+- `npm run prebuild:clean` - full regenerate (reapply any manual native edits afterward)
+- `npm run typecheck` and `npm run lint` - quick CI-style local checks

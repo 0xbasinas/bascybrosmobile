@@ -29,7 +29,7 @@ type FilterValue = TaskStatus | "all"
 const FILTER_OPTIONS: { value: FilterValue; label: string }[] = [
   { value: "all", label: "All" },
   { value: "open", label: "Open" },
-  { value: "in_progress", label: "In progress" },
+  { value: "in_progress", label: "In Prog." },
   { value: "done", label: "Done" },
 ]
 
@@ -187,6 +187,8 @@ function TaskRow({
           <Ionicons name="checkmark" size={16} color={palette.primaryText} />
         ) : task.status === "in_progress" ? (
           <Ionicons name="ellipse" size={10} color={palette.text} />
+        ) : task.status === "open" ? (
+          <Ionicons name="ellipse-outline" size={16} color={palette.textMuted} />
         ) : null}
       </Pressable>
 

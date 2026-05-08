@@ -42,11 +42,15 @@ export function Segmented<T extends string>({
             ]}
           >
             <Text
-              style={{
-                color: active ? palette.primaryText : palette.text,
-                fontSize: FontSize.sm,
-                fontWeight: "500",
-              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              style={[
+                styles.label,
+                {
+                  color: active ? palette.primaryText : palette.text,
+                },
+              ]}
             >
               {opt.label}
             </Text>
@@ -67,9 +71,18 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    minHeight: 40,
+    paddingVertical: Spacing.sm - 1,
+    paddingHorizontal: Spacing.sm,
     borderRadius: Radius.sm,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    fontSize: FontSize.sm,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 16,
+    includeFontPadding: false,
   },
 })

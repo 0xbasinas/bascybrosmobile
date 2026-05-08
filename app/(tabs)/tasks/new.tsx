@@ -20,7 +20,7 @@ import { TASK_STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@/lib/types"
 
 const STATUS_OPTIONS = TASK_STATUSES.map((s) => ({
   value: s,
-  label: TASK_STATUS_LABELS[s],
+  label: s === "in_progress" ? "In Prog." : TASK_STATUS_LABELS[s],
 }))
 
 export default function NewTaskScreen() {

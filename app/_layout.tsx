@@ -3,7 +3,8 @@ import { tokenCache } from "@clerk/expo/token-cache"
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native"
 import { Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
-import { useColorScheme } from "react-native"
+import { useEffect } from "react"
+import { LogBox, useColorScheme } from "react-native"
 import "react-native-reanimated"
 
 import { ReactQueryProvider } from "@/lib/query"
@@ -15,22 +16,27 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme()
+  useEffect(() => {
+    if (__DEV__) {
+      LogBox.ignoreLogs([
+        "new NativeEventEmitter() was called with a non-null argument",
+      ])
+    }
+  }, [])
 
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
       <ReactQueryProvider>
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
           <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />
             <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+            <Stack.Screen name="oauth-callback" options={{ headerShown: false }} />
             <Stack.Screen
               name="unauthorized"
               options={{ headerShown: false, presentation: "modal" }}
-            />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: "modal", title: "Modal" }}
             />
           </Stack>
           <StatusBar style="auto" />

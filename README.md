@@ -126,6 +126,8 @@ The repository includes a workflow at `.github/workflows/android-release-apk.yml
 - `ANDROID_KEYSTORE_PASSWORD`
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
+- `EXPO_PUBLIC_API_URL` - API base URL baked into the APK (do not use localhost for device installs)
+- `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk key baked into the APK for auth
 
 Example command to produce `ANDROID_KEYSTORE_BASE64` locally:
 

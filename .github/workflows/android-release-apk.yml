@@ -9,9 +9,6 @@ on:
 jobs:
   build-release-apk:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: bascybrosmobile
     env:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -25,8 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: bascybrosmobile/package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -68,5 +63,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bascybrosmobile-release-apk
-          path: bascybrosmobile/android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

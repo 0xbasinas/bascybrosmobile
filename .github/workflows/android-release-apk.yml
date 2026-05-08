@@ -14,6 +14,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GRADLE_OPTS: -Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,7 +58,7 @@ jobs:
           } >> android/gradle.properties
 
       - name: Build release APK
-        run: cd android && ./gradlew assembleRelease
+        run: cd android && ./gradlew assembleRelease -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4

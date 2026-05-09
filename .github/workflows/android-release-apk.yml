@@ -2,6 +2,22 @@ name: Build Android Release APK
 
 on:
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Force build even when changed files are non-impactful"
+        required: false
+        default: false
+        type: boolean
+      publish_build_scan:
+        description: "Publish Gradle build scan for profiling"
+        required: false
+        default: false
+        type: boolean
+      compare_with_eas:
+        description: "Run optional EAS cloud build for A/B timing"
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - "v*"
@@ -13,6 +29,8 @@ concurrency:
 jobs:
   build-release-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -21,11 +39,22 @@ jobs:
       EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       GRADLE_OPTS: -Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g
+      ANDROID_SDK_COMPONENTS: "platform-tools+build-tools+platforms"
+      CI: "true"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Initialize timing metrics
+        run: |
+          echo "JOB_START_TS=$(date +%s)" >> "$GITHUB_ENV"
+          echo "INSTALL_SECONDS=0" >> "$GITHUB_ENV"
+          echo "PREBUILD_SECONDS=0" >> "$GITHUB_ENV"
+          echo "LOCAL_BUILD_SECONDS=0" >> "$GITHUB_ENV"
+          echo "EAS_BUILD_SECONDS=0" >> "$GITHUB_ENV"
+          echo "EAS_BUILD_STATUS=not-run" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -47,17 +76,117 @@ jobs:
           path: |
             ~/.android/sdk
             ~/.android/cache
-          key: android-sdk-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: android-sdk-${{ runner.os }}-${{ env.ANDROID_SDK_COMPONENTS }}-v2
           restore-keys: |
+            android-sdk-${{ runner.os }}-${{ env.ANDROID_SDK_COMPONENTS }}-
             android-sdk-${{ runner.os }}-
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Detect mobile-impacting and prebuild-impacting changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FORCE_BUILD="${{ github.event_name == 'workflow_dispatch' && inputs.force_build == true }}"
+          SHOULD_BUILD="true"
+          SHOULD_PREBUILD="true"
+
+          if [ "$FORCE_BUILD" = "true" ]; then
+            echo "force_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "should_prebuild=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Build impact detection"
+              echo "- Force build enabled via workflow dispatch input."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          RANGE_START=""
+          RANGE_END="${GITHUB_SHA}"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            PREV_TAG="$(git tag --sort=-creatordate | sed -n '2p')"
+            if [ -n "$PREV_TAG" ]; then
+              RANGE_START="$(git rev-list -n 1 "$PREV_TAG")"
+            else
+              RANGE_START="$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || true)"
+            fi
+          else
+            RANGE_START="${{ github.event.before }}"
+            if [ -z "$RANGE_START" ] || [ "$RANGE_START" = "0000000000000000000000000000000000000000" ]; then
+              RANGE_START="$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || true)"
+            fi
+          fi
+
+          mapfile -t CHANGED_FILES < <(
+            if [ -n "$RANGE_START" ]; then
+              git diff --name-only "$RANGE_START" "$RANGE_END"
+            else
+              git show --name-only --pretty="" "$RANGE_END"
+            fi
+          )
+
+          if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
+            SHOULD_BUILD="true"
+            SHOULD_PREBUILD="true"
+          else
+            MOBILE_IMPACT="false"
+            PREBUILD_IMPACT="false"
+
+            for file in "${CHANGED_FILES[@]}"; do
+              case "$file" in
+                app/*|components/*|lib/*|assets/*|plugins/*|android/*|ios/*|.github/workflows/*|app.json|eas.json|package.json|package-lock.json|tsconfig.json|babel.config.*|metro.config.*)
+                  MOBILE_IMPACT="true"
+                  ;;
+              esac
+
+              case "$file" in
+                app.json|package.json|package-lock.json|plugins/*|android/*|ios/*|babel.config.*|metro.config.*|expo-env.d.ts)
+                  PREBUILD_IMPACT="true"
+                  ;;
+              esac
+            done
+
+            if [ "$MOBILE_IMPACT" = "false" ]; then
+              SHOULD_BUILD="false"
+              SHOULD_PREBUILD="false"
+            else
+              if [ -d "android" ]; then
+                SHOULD_PREBUILD="$PREBUILD_IMPACT"
+              else
+                SHOULD_PREBUILD="true"
+              fi
+            fi
+          fi
+
+          echo "force_build=false" >> "$GITHUB_OUTPUT"
+          echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
+          echo "should_prebuild=$SHOULD_PREBUILD" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Build impact detection"
+            echo "- Files checked: ${#CHANGED_FILES[@]}"
+            echo "- should_build: $SHOULD_BUILD"
+            echo "- should_prebuild: $SHOULD_PREBUILD"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Exit early when no mobile-impacting changes are detected
+        if: steps.changes.outputs.should_build != 'true'
+        run: |
+          echo "Skipping release APK build because no mobile-impacting files changed."
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps --prefer-offline --no-audit || npm install --legacy-peer-deps --prefer-offline --no-audit
+        if: steps.changes.outputs.should_build == 'true'
+        run: |
+          START_TS=$(date +%s)
+          npm ci --legacy-peer-deps --prefer-offline --no-audit
+          END_TS=$(date +%s)
+          echo "INSTALL_SECONDS=$((END_TS - START_TS))" >> "$GITHUB_ENV"
 
       - name: Validate build-time app env
+        if: steps.changes.outputs.should_build == 'true'
         run: |
           if [ -z "$EXPO_PUBLIC_API_URL" ] || [ -z "$EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY" ]; then
             echo "Missing EXPO_PUBLIC_API_URL or EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY."
@@ -66,9 +195,21 @@ jobs:
           fi
 
       - name: Generate Android project
-        run: npx expo prebuild --platform android --non-interactive
+        if: steps.changes.outputs.should_build == 'true' && steps.changes.outputs.should_prebuild == 'true'
+        run: |
+          START_TS=$(date +%s)
+          npx expo prebuild --platform android --non-interactive
+          END_TS=$(date +%s)
+          echo "PREBUILD_SECONDS=$((END_TS - START_TS))" >> "$GITHUB_ENV"
+
+      - name: Skip Android prebuild
+        if: steps.changes.outputs.should_build == 'true' && steps.changes.outputs.should_prebuild != 'true'
+        run: |
+          echo "Skipping expo prebuild because no prebuild-impacting files changed."
+          echo "PREBUILD_SECONDS=0" >> "$GITHUB_ENV"
 
       - name: Validate generated Android permissions
+        if: steps.changes.outputs.should_build == 'true'
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if [ ! -f "$MANIFEST" ]; then
@@ -87,9 +228,14 @@ jobs:
           done
 
       - name: Setup Gradle cache
+        if: steps.changes.outputs.should_build == 'true'
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') }}
+          cache-cleanup: on-success
 
       - name: Decode Android keystore
+        if: steps.changes.outputs.should_build == 'true'
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
             echo "Missing one or more Android signing secrets."
@@ -99,8 +245,9 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystores/release.keystore
 
       - name: Configure Gradle signing and CI tuning
+        if: steps.changes.outputs.should_build == 'true'
         run: |
-          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d' android/gradle.properties || true
+          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d' android/gradle.properties || true
           {
             echo "MYAPP_UPLOAD_STORE_FILE=app/keystores/release.keystore"
             echo "MYAPP_UPLOAD_KEY_ALIAS=$ANDROID_KEY_ALIAS"
@@ -109,17 +256,96 @@ jobs:
             echo "android.packagingOptions.pickFirsts=META-INF/versions/9/OSGI-INF/MANIFEST.MF"
             echo "org.gradle.parallel=true"
             echo "org.gradle.caching=true"
+            echo "org.gradle.configuration-cache=true"
+            echo "org.gradle.configuration-cache.problems=warn"
           } >> android/gradle.properties
 
       - name: Build release APK
-        run: cd android && ./gradlew assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease
+        if: steps.changes.outputs.should_build == 'true'
+        env:
+          PUBLISH_BUILD_SCAN: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_build_scan == true }}
+        run: |
+          START_TS=$(date +%s)
+          cd android
+          GRADLE_TASKS="assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease"
+          if [ "$PUBLISH_BUILD_SCAN" = "true" ]; then
+            ./gradlew $GRADLE_TASKS --scan -Dscan.termsOfServiceUrl=https://gradle.com/terms-of-service -Dscan.termsOfServiceAgree=yes
+          else
+            ./gradlew $GRADLE_TASKS
+          fi
+          END_TS=$(date +%s)
+          echo "LOCAL_BUILD_SECONDS=$((END_TS - START_TS))" >> "$GITHUB_ENV"
 
       - name: Upload release APK artifact
+        if: steps.changes.outputs.should_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: bascybrosmobile-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Optional EAS cloud APK benchmark
+        if: steps.changes.outputs.should_build == 'true' && github.event_name == 'workflow_dispatch' && inputs.compare_with_eas == true
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EAS_BUILD_STATUS=skipped-missing-expo-token" >> "$GITHUB_ENV"
+            echo "EAS benchmark skipped: EXPO_TOKEN is not configured." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          START_TS=$(date +%s)
+          JSON_OUTPUT="$(npx eas-cli build --platform android --profile preview --non-interactive --wait --json)"
+          END_TS=$(date +%s)
+          echo "EAS_BUILD_SECONDS=$((END_TS - START_TS))" >> "$GITHUB_ENV"
+          echo "EAS_BUILD_STATUS=completed" >> "$GITHUB_ENV"
+
+          mkdir -p dist
+          echo "$JSON_OUTPUT" > dist/eas-build.json
+          BUILD_ID="$(node -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync("dist/eas-build.json","utf8"));const id=Array.isArray(o)?o[0]?.id:o?.id; if(!id){process.exit(1)}; process.stdout.write(id);')"
+          npx eas-cli build:download --platform android --id "$BUILD_ID" --path dist/eas-preview.apk
+
+      - name: Upload optional EAS APK artifact
+        if: steps.changes.outputs.should_build == 'true' && github.event_name == 'workflow_dispatch' && inputs.compare_with_eas == true && env.EAS_BUILD_STATUS == 'completed'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bascybrosmobile-eas-preview-apk
+          path: dist/eas-preview.apk
+          if-no-files-found: error
+
+      - name: Publish build timing summary
+        if: always()
+        run: |
+          NOW_TS=$(date +%s)
+          TOTAL_SECONDS=$((NOW_TS - JOB_START_TS))
+          INSTALL_MINUTES=$(awk "BEGIN {printf \"%.2f\", $INSTALL_SECONDS / 60}")
+          PREBUILD_MINUTES=$(awk "BEGIN {printf \"%.2f\", $PREBUILD_SECONDS / 60}")
+          LOCAL_BUILD_MINUTES=$(awk "BEGIN {printf \"%.2f\", $LOCAL_BUILD_SECONDS / 60}")
+          EAS_BUILD_MINUTES=$(awk "BEGIN {printf \"%.2f\", $EAS_BUILD_SECONDS / 60}")
+          TOTAL_MINUTES=$(awk "BEGIN {printf \"%.2f\", $TOTAL_SECONDS / 60}")
+
+          RECOMMENDATION="Use local Gradle APK workflow as default."
+          if [ "${EAS_BUILD_STATUS}" = "completed" ] && [ "${EAS_BUILD_SECONDS}" -gt 0 ] && [ "${LOCAL_BUILD_SECONDS}" -gt 0 ]; then
+            if [ "${EAS_BUILD_SECONDS}" -lt "${LOCAL_BUILD_SECONDS}" ]; then
+              RECOMMENDATION="EAS cloud is currently faster for this branch/profile."
+            fi
+          fi
+
+          {
+            echo "### Android release build timing"
+            echo ""
+            echo "| Phase | Seconds | Minutes |"
+            echo "|---|---:|---:|"
+            echo "| npm install | ${INSTALL_SECONDS} | ${INSTALL_MINUTES} |"
+            echo "| expo prebuild | ${PREBUILD_SECONDS} | ${PREBUILD_MINUTES} |"
+            echo "| local Gradle assembleRelease | ${LOCAL_BUILD_SECONDS} | ${LOCAL_BUILD_MINUTES} |"
+            echo "| optional EAS cloud build | ${EAS_BUILD_SECONDS} | ${EAS_BUILD_MINUTES} |"
+            echo "| total job time | ${TOTAL_SECONDS} | ${TOTAL_MINUTES} |"
+            echo ""
+            echo "- EAS benchmark status: ${EAS_BUILD_STATUS}"
+            echo "- Recommendation: ${RECOMMENDATION}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cleanup signing artifacts
         if: always()

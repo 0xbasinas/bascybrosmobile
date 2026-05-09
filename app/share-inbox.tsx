@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
@@ -34,6 +35,7 @@ function defaultTitleFromUrl(rawUrl: string) {
 
 export default function ShareInboxScreen() {
   const palette = usePalette()
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { requestJson } = useApi()
   const { isLoaded, isSignedIn } = useAuth()
@@ -101,7 +103,16 @@ export default function ShareInboxScreen() {
       style={{ flex: 1, backgroundColor: palette.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: Math.max(insets.top, Spacing.md) + Spacing.sm,
+            paddingBottom: Math.max(insets.bottom, Spacing.lg) + Spacing.xl,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={[styles.banner, { backgroundColor: palette.surface, borderColor: palette.border }]}>
           <Text style={[styles.bannerTitle, { color: palette.text }]}>Shared content received</Text>
           <Text style={[styles.bannerText, { color: palette.textMuted }]}>
@@ -167,7 +178,7 @@ export default function ShareInboxScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
     gap: Spacing.lg,
   },
   banner: {

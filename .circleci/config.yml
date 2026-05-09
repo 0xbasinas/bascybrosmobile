@@ -15,9 +15,9 @@ executors:
   android_executor:
     docker:
       - image: cimg/android:2026.03-node
-    resource_class: large
+    resource_class: xlarge
     environment:
-      GRADLE_OPTS: -Xmx3g -XX:MaxMetaspaceSize=1g
+      GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
       NPM_CONFIG_CACHE: /home/circleci/project/.npm-cache
       NODE_ENV: production
       CI: "true"
@@ -190,7 +190,7 @@ jobs:
               echo "org.gradle.configuration-cache=false"
               echo "org.gradle.configuration-cache.problems=warn"
               echo "org.gradle.daemon=false"
-              echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=1024m"
+              echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
               echo "org.gradle.workers.max=2"
               echo "kotlin.compiler.execution.strategy=in-process"
             } >> android/gradle.properties

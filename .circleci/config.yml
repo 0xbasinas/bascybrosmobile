@@ -9,6 +9,8 @@ jobs:
       GRADLE_OPTS: -Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g
       ANDROID_SDK_COMPONENTS: platform-tools+build-tools+platforms
       NPM_CONFIG_CACHE: /home/circleci/project/.npm-cache
+      NODE_ENV: production
+      CI: "true"
     steps:
       - checkout
 
@@ -59,9 +61,9 @@ jobs:
 
       - restore_cache:
           keys:
-            - gradle-cache-v3-{{ checksum "android/gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "package-lock.json" }}
-            - gradle-cache-v3-{{ checksum "android/gradle/wrapper/gradle-wrapper.properties" }}-
-            - gradle-cache-v3-
+            - gradle-cache-v4-{{ checksum "package-lock.json" }}-{{ checksum "app.json" }}
+            - gradle-cache-v4-{{ checksum "package-lock.json" }}-
+            - gradle-cache-v4-
 
       - run:
           name: Generate Android project
@@ -139,7 +141,7 @@ jobs:
             rm -rf ~/.gradle/caches/journal-1 || true
 
       - save_cache:
-          key: gradle-cache-v3-{{ checksum "android/gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "package-lock.json" }}
+          key: gradle-cache-v4-{{ checksum "package-lock.json" }}-{{ checksum "app.json" }}
           paths:
             - ~/.gradle/caches
             - ~/.gradle/wrapper

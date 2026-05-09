@@ -16,8 +16,8 @@ jobs:
     environment:
       GRADLE_OPTS: -Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g
       ANDROID_SDK_COMPONENTS: platform-tools+build-tools+platforms
-      CIRCLE_FORCE_BUILD: << pipeline.parameters.force_build >>
-      CIRCLE_PUBLISH_BUILD_SCAN: << pipeline.parameters.publish_build_scan >>
+      CIRCLE_FORCE_BUILD: "<< pipeline.parameters.force_build >>"
+      CIRCLE_PUBLISH_BUILD_SCAN: "<< pipeline.parameters.publish_build_scan >>"
     steps:
       - checkout
 
@@ -299,4 +299,4 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              ignore: /.*/
+              only: /.*/

@@ -17,7 +17,9 @@ executors:
       - image: cimg/android:2026.03-node
     resource_class: large
     environment:
-      GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
+      # Keep JVM heap well below total RAM (8 GB on large) so the OS,
+      # Node process, and Kotlin in-process compiler all have headroom.
+      GRADLE_OPTS: -Xmx3g -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC
       NPM_CONFIG_CACHE: /home/circleci/project/.npm-cache
       NODE_ENV: production
       CI: "true"
@@ -187,14 +189,15 @@ jobs:
               echo "MYAPP_UPLOAD_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
               echo "MYAPP_UPLOAD_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
               echo "android.packagingOptions.pickFirsts=META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-              echo "org.gradle.parallel=false"
+              echo "org.gradle.parallel=true"
               echo "org.gradle.caching=true"
               echo "org.gradle.configuration-cache=false"
               echo "org.gradle.configuration-cache.problems=warn"
               echo "org.gradle.daemon=false"
-              echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+              echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC"
               echo "org.gradle.workers.max=2"
               echo "kotlin.compiler.execution.strategy=in-process"
+              echo "kotlin.incremental=false"
             } >> android/gradle.properties
 
       - run:
@@ -207,6 +210,7 @@ jobs:
             ./gradlew assembleRelease \
               --no-daemon \
               --build-cache \
+              --parallel \
               --max-workers=2 \
               -x lint \
               -x lintVitalRelease \

@@ -52,7 +52,10 @@
           "disableIOS": true,
           "androidIntentFilters": [
             "text/*"
-          ]
+          ],
+          "androidMainActivityAttributes": {
+            "android:launchMode": "singleTask"
+          }
         }
       ],
       [

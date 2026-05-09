@@ -77,8 +77,11 @@ jobs:
           fi
           FORBIDDEN=("android.permission.RECORD_AUDIO" "android.permission.SYSTEM_ALERT_WINDOW" "android.permission.READ_EXTERNAL_STORAGE" "android.permission.WRITE_EXTERNAL_STORAGE")
           for perm in "${FORBIDDEN[@]}"; do
-            if grep -q "$perm" "$MANIFEST"; then
-              echo "Forbidden permission present in manifest: $perm"
+            if awk -v perm="$perm" '
+              /<uses-permission/ && index($0, "android:name=\"" perm "\"") && index($0, "tools:node=\"remove\"") == 0 { found=1 }
+              END { exit found ? 0 : 1 }
+            ' "$MANIFEST"; then
+              echo "Forbidden permission effectively present in manifest: $perm"
               exit 1
             fi
           done

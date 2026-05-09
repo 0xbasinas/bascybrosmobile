@@ -68,6 +68,21 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive
 
+      - name: Validate generated Android permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "AndroidManifest.xml not found at $MANIFEST"
+            exit 1
+          fi
+          FORBIDDEN=("android.permission.RECORD_AUDIO" "android.permission.SYSTEM_ALERT_WINDOW" "android.permission.READ_EXTERNAL_STORAGE" "android.permission.WRITE_EXTERNAL_STORAGE")
+          for perm in "${FORBIDDEN[@]}"; do
+            if grep -q "$perm" "$MANIFEST"; then
+              echo "Forbidden permission present in manifest: $perm"
+              exit 1
+            fi
+          done
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
 

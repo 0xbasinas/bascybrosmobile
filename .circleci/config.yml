@@ -15,7 +15,7 @@ executors:
   android_executor:
     docker:
       - image: cimg/android:2026.03-node
-    resource_class: xlarge
+    resource_class: large
     environment:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
       NPM_CONFIG_CACHE: /home/circleci/project/.npm-cache
@@ -93,6 +93,7 @@ jobs:
 
       - run:
           name: Install Node dependencies
+          no_output_timeout: 15m
           command: |
             source "$BASH_ENV"
             START_TS=$(date +%s)
@@ -177,6 +178,7 @@ jobs:
 
       - run:
           name: Configure Gradle signing and CI tuning
+          no_output_timeout: 5m
           command: |
             sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d;/^org.gradle.jvmargs=/d;/^org.gradle.workers.max=/d;/^org.gradle.daemon=/d' android/gradle.properties || true
             {
@@ -215,6 +217,7 @@ jobs:
       - run:
           name: Prune Gradle cache before save
           when: always
+          no_output_timeout: 10m
           command: |
             rm -rf ~/.gradle/caches/transforms-* || true
             rm -rf ~/.gradle/caches/*/executionHistory || true

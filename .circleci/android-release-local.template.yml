@@ -6,10 +6,10 @@ version: 2.1
 jobs:
   build_release_apk:
     docker:
-      - image: cimg/android:2024.11-node
+      - image: cimg/android:2026.03-node
     resource_class: large
     environment:
-      GRADLE_OPTS: -Xmx3g -XX:MaxMetaspaceSize=1g -Dkotlin.daemon.jvm.options=-Xmx1g
+      GRADLE_OPTS: -Xmx3g -XX:MaxMetaspaceSize=1g
       ANDROID_SDK_COMPONENTS: platform-tools+build-tools+platforms
       NPM_CONFIG_CACHE: /home/circleci/project/.npm-cache
       NODE_ENV: production
@@ -73,7 +73,8 @@ jobs:
           command: |
             source "$BASH_ENV"
             START_TS=$(date +%s)
-            npx expo prebuild --platform android --non-interactive
+            export EXPO_DEBUG=1
+            timeout 20m npx expo prebuild --platform android --non-interactive --no-install
             END_TS=$(date +%s)
             echo "export PREBUILD_SECONDS=$((END_TS - START_TS))" >> "$BASH_ENV"
 
@@ -121,8 +122,9 @@ jobs:
               echo "org.gradle.configuration-cache=false"
               echo "org.gradle.configuration-cache.problems=warn"
               echo "org.gradle.daemon=false"
-              echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=1024m -Dkotlin.daemon.jvm.options=-Xmx1024m"
+              echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=1024m"
               echo "org.gradle.workers.max=2"
+              echo "kotlin.compiler.execution.strategy=in-process"
             } >> android/gradle.properties
 
       - run:

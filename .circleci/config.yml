@@ -12,7 +12,7 @@ jobs:
   build_release_apk:
     docker:
       - image: cimg/android:2024.11-node
-    resource_class: xlarge
+    resource_class: large
     environment:
       GRADLE_OPTS: -Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g
       ANDROID_SDK_COMPONENTS: platform-tools+build-tools+platforms

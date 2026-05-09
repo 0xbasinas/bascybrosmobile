@@ -1,13 +1,5 @@
 version: 2.1
 
-parameters:
-  force_build:
-    type: boolean
-    default: false
-  publish_build_scan:
-    type: boolean
-    default: false
-
 jobs:
   build_release_apk:
     docker:
@@ -16,8 +8,6 @@ jobs:
     environment:
       GRADLE_OPTS: -Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g
       ANDROID_SDK_COMPONENTS: platform-tools+build-tools+platforms
-      CIRCLE_FORCE_BUILD: "<< pipeline.parameters.force_build >>"
-      CIRCLE_PUBLISH_BUILD_SCAN: "<< pipeline.parameters.publish_build_scan >>"
     steps:
       - checkout
 
@@ -29,86 +19,7 @@ jobs:
               echo "export INSTALL_SECONDS=0"
               echo "export PREBUILD_SECONDS=0"
               echo "export LOCAL_BUILD_SECONDS=0"
-              echo "export SHOULD_BUILD=true"
-              echo "export SHOULD_PREBUILD=true"
             } >> "$BASH_ENV"
-
-      - run:
-          name: Detect mobile-impacting and prebuild-impacting changes
-          command: |
-            source "$BASH_ENV"
-            set -eo pipefail
-
-            git fetch --tags --force >/dev/null 2>&1 || true
-
-            if [ "${CIRCLE_FORCE_BUILD}" = "true" ]; then
-              echo "Force build enabled from pipeline parameter."
-              echo "export SHOULD_BUILD=true" >> "$BASH_ENV"
-              echo "export SHOULD_PREBUILD=true" >> "$BASH_ENV"
-              exit 0
-            fi
-
-            RANGE_START=""
-            RANGE_END="${CIRCLE_SHA1}"
-            if [ -n "${CIRCLE_TAG}" ]; then
-              PREV_TAG="$(git tag --sort=-creatordate | sed -n '2p')"
-              if [ -n "${PREV_TAG}" ]; then
-                RANGE_START="$(git rev-list -n 1 "${PREV_TAG}")"
-              else
-                RANGE_START="$(git rev-parse "${CIRCLE_SHA1}^" 2>/dev/null || true)"
-              fi
-            else
-              RANGE_START="$(git rev-parse "${CIRCLE_SHA1}^" 2>/dev/null || true)"
-            fi
-
-            CHANGED_FILES=""
-            if [ -n "${RANGE_START}" ]; then
-              CHANGED_FILES="$(git diff --name-only "${RANGE_START}" "${RANGE_END}")"
-            else
-              CHANGED_FILES="$(git show --name-only --pretty="" "${RANGE_END}")"
-            fi
-
-            SHOULD_BUILD=true
-            SHOULD_PREBUILD=true
-
-            if [ -n "${CHANGED_FILES}" ]; then
-              MOBILE_IMPACT=false
-              PREBUILD_IMPACT=false
-
-              CHANGED_FILES_LIST=/tmp/changed_files.txt
-              printf "%s\n" "${CHANGED_FILES}" > "${CHANGED_FILES_LIST}"
-
-              while IFS= read -r file; do
-                case "$file" in
-                  app/*|components/*|lib/*|assets/*|plugins/*|android/*|ios/*|app.json|eas.json|package.json|package-lock.json|tsconfig.json|babel.config.*|metro.config.*)
-                    MOBILE_IMPACT=true
-                    ;;
-                esac
-                case "$file" in
-                  app.json|package.json|package-lock.json|plugins/*|android/*|ios/*|babel.config.*|metro.config.*|expo-env.d.ts)
-                    PREBUILD_IMPACT=true
-                    ;;
-                esac
-              done < "${CHANGED_FILES_LIST}"
-
-              if [ "${MOBILE_IMPACT}" != "true" ]; then
-                SHOULD_BUILD=false
-                SHOULD_PREBUILD=false
-              else
-                if [ -d "android" ]; then
-                  SHOULD_PREBUILD="${PREBUILD_IMPACT}"
-                else
-                  SHOULD_PREBUILD=true
-                fi
-              fi
-            fi
-
-            {
-              echo "export SHOULD_BUILD=${SHOULD_BUILD}"
-              echo "export SHOULD_PREBUILD=${SHOULD_PREBUILD}"
-            } >> "$BASH_ENV"
-
-            echo "Detected changes: should_build=${SHOULD_BUILD}, should_prebuild=${SHOULD_PREBUILD}"
 
       - restore_cache:
           keys:
@@ -119,10 +30,6 @@ jobs:
           name: Install dependencies
           command: |
             source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              echo "Skipping install (no mobile-impacting changes)."
-              exit 0
-            fi
             START_TS=$(date +%s)
             npm ci --legacy-peer-deps --prefer-offline --no-audit
             END_TS=$(date +%s)
@@ -136,10 +43,6 @@ jobs:
       - run:
           name: Validate build-time app env
           command: |
-            source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              exit 0
-            fi
             if [ -z "$EXPO_PUBLIC_API_URL" ] || [ -z "$EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY" ]; then
               echo "Missing EXPO_PUBLIC_API_URL or EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY."
               exit 1
@@ -154,26 +57,14 @@ jobs:
           name: Generate Android project
           command: |
             source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              exit 0
-            fi
-            if [ "${SHOULD_PREBUILD}" = "true" ]; then
-              START_TS=$(date +%s)
-              npx expo prebuild --platform android --non-interactive
-              END_TS=$(date +%s)
-              echo "export PREBUILD_SECONDS=$((END_TS - START_TS))" >> "$BASH_ENV"
-            else
-              echo "Skipping expo prebuild because no prebuild-impacting changes were detected."
-              echo "export PREBUILD_SECONDS=0" >> "$BASH_ENV"
-            fi
+            START_TS=$(date +%s)
+            npx expo prebuild --platform android --non-interactive
+            END_TS=$(date +%s)
+            echo "export PREBUILD_SECONDS=$((END_TS - START_TS))" >> "$BASH_ENV"
 
       - run:
           name: Validate generated Android permissions
           command: |
-            source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              exit 0
-            fi
             MANIFEST="android/app/src/main/AndroidManifest.xml"
             if [ ! -f "$MANIFEST" ]; then
               echo "AndroidManifest.xml not found at $MANIFEST"
@@ -193,10 +84,6 @@ jobs:
       - run:
           name: Decode Android keystore
           command: |
-            source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              exit 0
-            fi
             if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
               echo "Missing one or more Android signing secrets."
               exit 1
@@ -207,10 +94,6 @@ jobs:
       - run:
           name: Configure Gradle signing and CI tuning
           command: |
-            source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              exit 0
-            fi
             sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d' android/gradle.properties || true
             {
               echo "MYAPP_UPLOAD_STORE_FILE=app/keystores/release.keystore"
@@ -228,18 +111,10 @@ jobs:
           name: Build release APK
           command: |
             source "$BASH_ENV"
-            if [ "${SHOULD_BUILD}" != "true" ]; then
-              echo "Skipping Gradle build (no mobile-impacting changes)."
-              exit 0
-            fi
             START_TS=$(date +%s)
             cd android
             GRADLE_TASKS="assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease"
-            if [ "${CIRCLE_PUBLISH_BUILD_SCAN}" = "true" ]; then
-              ./gradlew $GRADLE_TASKS --scan -Dscan.termsOfServiceUrl=https://gradle.com/terms-of-service -Dscan.termsOfServiceAgree=yes
-            else
-              ./gradlew $GRADLE_TASKS
-            fi
+            ./gradlew $GRADLE_TASKS
             END_TS=$(date +%s)
             echo "export LOCAL_BUILD_SECONDS=$((END_TS - START_TS))" >> "$BASH_ENV"
 
@@ -263,22 +138,11 @@ jobs:
               echo "prebuild_seconds=${PREBUILD_SECONDS}"
               echo "local_build_seconds=${LOCAL_BUILD_SECONDS}"
               echo "total_seconds=${TOTAL_SECONDS}"
-              echo "should_build=${SHOULD_BUILD}"
-              echo "should_prebuild=${SHOULD_PREBUILD}"
             } | tee artifacts/timing-summary.txt
 
       - store_artifacts:
           path: artifacts/timing-summary.txt
           destination: timing-summary.txt
-
-      - run:
-          name: Ensure APK artifact path exists
-          when: always
-          command: |
-            mkdir -p android/app/build/outputs/apk/release
-            if [ ! -f android/app/build/outputs/apk/release/app-release.apk ]; then
-              echo "APK was not produced in this run (skipped or failed before assembleRelease)." > android/app/build/outputs/apk/release/app-release.apk
-            fi
 
       - store_artifacts:
           path: android/app/build/outputs/apk/release/app-release.apk

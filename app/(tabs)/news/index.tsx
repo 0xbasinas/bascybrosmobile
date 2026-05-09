@@ -1,14 +1,12 @@
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native"
-import * as WebBrowser from "expo-web-browser"
 import { Ionicons } from "@expo/vector-icons"
 import { useQuery } from "@tanstack/react-query"
 
@@ -16,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty"
 import { useApi, HttpError } from "@/lib/api"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 import type { NewsItem } from "@/lib/types"
+import { safeOpenUrl } from "@/lib/safe-open-url"
 
 function formatDate(value: string | null) {
   if (!value) return ""
@@ -83,7 +82,7 @@ function NewsRow({ item }: { item: NewsItem }) {
   return (
     <Pressable
       onPress={() => {
-        WebBrowser.openBrowserAsync(item.link).catch(() => Linking.openURL(item.link))
+        void safeOpenUrl(item.link)
       }}
       style={({ pressed }) => [
         styles.row,

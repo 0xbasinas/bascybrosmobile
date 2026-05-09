@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,6 +39,17 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      # Gradle + AGP download platforms/NDK/build-tools into the SDK; caching avoids multi-minute cold downloads.
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/sdk
+            ~/.android/cache
+          key: android-sdk-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            android-sdk-${{ runner.os }}-
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -67,18 +80,21 @@ jobs:
           mkdir -p android/app/keystores
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystores/release.keystore
 
-      - name: Configure Gradle signing properties
+      - name: Configure Gradle signing and CI tuning
         run: |
+          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d' android/gradle.properties || true
           {
             echo "MYAPP_UPLOAD_STORE_FILE=app/keystores/release.keystore"
             echo "MYAPP_UPLOAD_KEY_ALIAS=$ANDROID_KEY_ALIAS"
             echo "MYAPP_UPLOAD_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
             echo "MYAPP_UPLOAD_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
             echo "android.packagingOptions.pickFirsts=META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            echo "org.gradle.parallel=true"
+            echo "org.gradle.caching=true"
           } >> android/gradle.properties
 
       - name: Build release APK
-        run: cd android && ./gradlew assembleRelease -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease
+        run: cd android && ./gradlew assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
@@ -86,3 +102,9 @@ jobs:
           name: bascybrosmobile-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Cleanup signing artifacts
+        if: always()
+        run: |
+          rm -f android/app/keystores/release.keystore || true
+          sed -i '/^MYAPP_UPLOAD_/d' android/gradle.properties || true

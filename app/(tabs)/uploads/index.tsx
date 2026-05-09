@@ -5,14 +5,12 @@ import {
   Dimensions,
   FlatList,
   Image,
-  Linking,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native"
-import * as WebBrowser from "expo-web-browser"
 import { Ionicons } from "@expo/vector-icons"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -22,6 +20,7 @@ import { useApi, HttpError } from "@/lib/api"
 import { useUploadImage, type PickedImage } from "@/lib/hooks/useUploadImage"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 import type { UploadedFile } from "@/lib/types"
+import { safeOpenUrl } from "@/lib/safe-open-url"
 
 const COLUMNS = 2
 const SCREEN_W = Dimensions.get("window").width
@@ -165,7 +164,7 @@ function Tile({
   return (
     <Pressable
       onPress={() => {
-        WebBrowser.openBrowserAsync(file.url).catch(() => Linking.openURL(file.url))
+        void safeOpenUrl(file.url)
       }}
       style={({ pressed }) => [
         styles.tile,

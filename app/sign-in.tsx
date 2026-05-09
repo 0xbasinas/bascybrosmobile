@@ -24,6 +24,7 @@ import {
 import { usePalette } from "@/lib/theme"
 import { checkEmailAllowed } from "@/lib/check-email"
 import { describeClerkError } from "@/lib/clerk-errors"
+import { AUTH_REDIRECT_URL } from "@/lib/auth-redirect"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -253,7 +254,7 @@ export default function SignInScreen() {
     try {
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: "oauth_google",
-        redirectUrl: "bascybrosmobile://oauth-callback",
+        redirectUrl: AUTH_REDIRECT_URL,
       })
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId })

@@ -1,9 +1,8 @@
 import { useMemo } from "react"
-import { Linking } from "react-native"
 import { EnrichedMarkdownText } from "react-native-enriched-markdown"
-import * as WebBrowser from "expo-web-browser"
 
 import { FontSize, usePalette } from "@/lib/theme"
+import { safeOpenUrl } from "@/lib/safe-open-url"
 
 type Props = {
   markdown: string
@@ -84,7 +83,7 @@ export function MarkdownView({ markdown, flavor = "github", onLinkPress }: Props
       flavor={flavor}
       onLinkPress={({ url }) => {
         if (onLinkPress) return onLinkPress(url)
-        WebBrowser.openBrowserAsync(url).catch(() => Linking.openURL(url))
+        void safeOpenUrl(url)
       }}
       markdownStyle={markdownStyle}
     />

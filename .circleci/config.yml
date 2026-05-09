@@ -115,6 +115,7 @@ jobs:
 
       - run:
           name: Install native build tools (Ninja + CMake)
+          no_output_timeout: 15m
           command: |
             sudo apt-get update -q
             sudo apt-get install -y ninja-build cmake
@@ -129,6 +130,7 @@ jobs:
 
       - run:
           name: Generate Android project (expo prebuild)
+          no_output_timeout: 30m
           command: |
             source "$BASH_ENV"
             START_TS=$(date +%s)
@@ -195,6 +197,7 @@ jobs:
 
       - run:
           name: Build release APK
+          no_output_timeout: 45m
           command: |
             source "$BASH_ENV"
             START_TS=$(date +%s)

@@ -47,6 +47,15 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-share-intent",
+        {
+          "disableIOS": true,
+          "androidIntentFilters": [
+            "text/*"
+          ]
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Allow BascyBros to attach images from your photo library.",

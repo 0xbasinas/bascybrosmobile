@@ -114,7 +114,7 @@ export default function ShareInboxScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.banner, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-          <Text style={[styles.bannerTitle, { color: palette.text }]}>Shared content received</Text>
+          <Text style={[styles.bannerTitle, { color: palette.text }]}>Shared content ready</Text>
           <Text style={[styles.bannerText, { color: palette.textMuted }]}>
             {hasShareIntent ? "Review and save it as a note." : "No active shared content."}
           </Text>

@@ -25,6 +25,7 @@ import { FontSize, usePalette } from "@/lib/theme"
 import { checkEmailAllowed } from "@/lib/check-email"
 import { describeClerkError } from "@/lib/clerk-errors"
 import { AUTH_REDIRECT_URL } from "@/lib/auth-redirect"
+import { usePostAuthHref } from "@/lib/share-auth-routing"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -33,6 +34,7 @@ type Step = "email" | "password" | "code"
 export default function SignUpScreen() {
   const palette = usePalette()
   const router = useRouter()
+  const postAuthHref = usePostAuthHref()
   const { signUp, errors, fetchStatus } = useSignUp()
   const { startSSOFlow } = useSSO()
 
@@ -55,7 +57,7 @@ export default function SignUpScreen() {
     if (!signUp) return
     await signUp.finalize({
       navigate: () => {
-        router.replace("/(tabs)/notes")
+        router.replace(postAuthHref)
         return Promise.resolve()
       },
     })
@@ -165,7 +167,7 @@ export default function SignUpScreen() {
       })
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId })
-        router.replace("/(tabs)/notes")
+        router.replace(postAuthHref)
       } else {
         Alert.alert("Google sign-up incomplete", "Additional steps are required.")
       }

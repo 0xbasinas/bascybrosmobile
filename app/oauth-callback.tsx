@@ -2,10 +2,12 @@ import { useAuth } from "@clerk/expo"
 import { Redirect } from "expo-router"
 import { ActivityIndicator, View } from "react-native"
 
+import { usePostAuthHref } from "@/lib/share-auth-routing"
 import { usePalette } from "@/lib/theme"
 
 export default function OAuthCallbackScreen() {
   const { isLoaded, isSignedIn } = useAuth()
+  const postAuthHref = usePostAuthHref()
   const palette = usePalette()
 
   if (!isLoaded) {
@@ -24,7 +26,7 @@ export default function OAuthCallbackScreen() {
   }
 
   if (isSignedIn) {
-    return <Redirect href="/(tabs)/notes" />
+    return <Redirect href={postAuthHref} />
   }
 
   return <Redirect href="/sign-in" />

@@ -1,5 +1,4 @@
-import { ClerkProvider } from "@clerk/expo"
-import { useAuth } from "@clerk/expo"
+import { ClerkProvider, useAuth } from "@clerk/expo"
 import { tokenCache } from "@clerk/expo/token-cache"
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native"
 import { Stack, usePathname, useRouter } from "expo-router"
@@ -31,7 +30,10 @@ export default function RootLayout() {
     // ShareIntentProvider wraps everything so all screens share one intent state.
     // android:launchMode="singleTask" (in app.json) prevents a second activity
     // from spawning when a share arrives, so ClerkProvider is never duplicated.
-    <ShareIntentProvider>
+    // resetOnBackground: false — default true clears the intent when the activity
+    // briefly goes inactive during the Android share handoff, which looked like a
+    // crash / failed save and raced with Clerk + expo-router redirects.
+    <ShareIntentProvider options={{ resetOnBackground: false }}>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
         <ReactQueryProvider>
           <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
@@ -64,7 +66,7 @@ function ShareIntentRedirector() {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !hasShareIntent) return
-    if (pathname === "/share-inbox") return
+    if (pathname.includes("share-inbox")) return
     router.replace("/share-inbox" as never)
   }, [hasShareIntent, isLoaded, isSignedIn, pathname, router])
 

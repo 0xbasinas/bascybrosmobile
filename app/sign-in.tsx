@@ -25,6 +25,7 @@ import { usePalette } from "@/lib/theme"
 import { checkEmailAllowed } from "@/lib/check-email"
 import { describeClerkError } from "@/lib/clerk-errors"
 import { AUTH_REDIRECT_URL } from "@/lib/auth-redirect"
+import { usePostAuthHref } from "@/lib/share-auth-routing"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -34,6 +35,7 @@ type MfaMethod = "email_code" | "totp" | "backup_code"
 export default function SignInScreen() {
   const palette = usePalette()
   const router = useRouter()
+  const postAuthHref = usePostAuthHref()
   const { signIn, errors, fetchStatus } = useSignIn()
   const { startSSOFlow } = useSSO()
   const { isSignedIn } = useAuth()
@@ -49,9 +51,9 @@ export default function SignInScreen() {
 
   useEffect(() => {
     if (isSignedIn) {
-      router.replace("/(tabs)/notes")
+      router.replace(postAuthHref)
     }
-  }, [isSignedIn, router])
+  }, [isSignedIn, postAuthHref, router])
 
   function reset() {
     setStep("email")
@@ -65,7 +67,7 @@ export default function SignInScreen() {
     if (!signIn) return
     await signIn.finalize({
       navigate: () => {
-        router.replace("/(tabs)/notes")
+        router.replace(postAuthHref)
         return Promise.resolve()
       },
     })
@@ -258,7 +260,7 @@ export default function SignInScreen() {
       })
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId })
-        router.replace("/(tabs)/notes")
+        router.replace(postAuthHref)
       } else {
         Alert.alert(
           "Google sign-in incomplete",

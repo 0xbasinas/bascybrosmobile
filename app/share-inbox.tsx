@@ -118,7 +118,7 @@ export default function ShareInboxScreen() {
         <View style={[styles.banner, { backgroundColor: palette.surface, borderColor: palette.border }]}>
           <Text style={[styles.bannerTitle, { color: palette.text }]}>Shared content ready</Text>
           <Text style={[styles.bannerText, { color: palette.textMuted }]}>
-            {hasShareIntent ? "Only the shared URL is kept." : "No active shared content."}
+            {hasShareIntent ? "Only the shared URL is saved." : "No active shared content."}
           </Text>
           {error ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}
         </View>

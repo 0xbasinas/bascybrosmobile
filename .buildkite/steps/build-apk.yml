@@ -6,8 +6,17 @@ steps:
     command: |
       set -euo pipefail
 
+      # If stored in Buildkite Secrets, fetch them explicitly; Pipeline Env Vars are already set.
+      if [ -z "$${EXPO_PUBLIC_API_URL:-}" ]; then
+        export EXPO_PUBLIC_API_URL="$$(buildkite-agent secret get EXPO_PUBLIC_API_URL 2>/dev/null || true)"
+      fi
+      if [ -z "$${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:-}" ]; then
+        export EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="$$(buildkite-agent secret get EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY 2>/dev/null || true)"
+      fi
+
       if [ -z "$${EXPO_PUBLIC_API_URL:-}" ] || [ -z "$${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:-}" ]; then
         echo "Missing EXPO_PUBLIC_API_URL or EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY."
+        echo "Set them in Pipeline Settings > Environment Variables, or add them to Buildkite Secrets."
         exit 1
       fi
 

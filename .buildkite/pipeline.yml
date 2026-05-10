@@ -17,6 +17,14 @@ steps:
       SHOULD_BUILD="true"
       SHOULD_PREBUILD="true"
 
+      # Always do a full build on tagged releases — the release step depends on it.
+      if [ -n "$${BUILDKITE_TAG:-}" ]; then
+        echo "Tagged release ($${BUILDKITE_TAG}) — forcing full build."
+        buildkite-agent meta-data set should_build    "true"
+        buildkite-agent meta-data set should_prebuild "true"
+        exit 0
+      fi
+
       if [ "$${FORCE_BUILD}" = "true" ]; then
         echo "Force build enabled."
         buildkite-agent meta-data set should_build    "true"

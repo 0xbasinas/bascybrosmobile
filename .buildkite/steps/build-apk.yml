@@ -97,15 +97,16 @@ steps:
         unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools-extract
         mv /tmp/cmdtools-extract/cmdline-tools "$$ANDROID_HOME/cmdline-tools/latest"
         rm -rf /tmp/cmdtools-extract /tmp/cmdtools.zip
+        echo "Accepting SDK licenses and installing SDK components..."
+        yes | sdkmanager --licenses > /dev/null 2>&1 || true
+        sdkmanager \
+          "platform-tools" \
+          "platforms;android-35" \
+          "build-tools;35.0.0" \
+          "ndk;26.1.10909125" > /dev/null
+      else
+        echo "Android SDK already cached — skipping download."
       fi
-
-      echo "Accepting SDK licenses and installing SDK components..."
-      yes | sdkmanager --licenses > /dev/null 2>&1 || true
-      sdkmanager \
-        "platform-tools" \
-        "platforms;android-35" \
-        "build-tools;35.0.0" \
-        "ndk;26.1.10909125" > /dev/null
 
       echo "Android SDK ready at $$ANDROID_HOME"
 

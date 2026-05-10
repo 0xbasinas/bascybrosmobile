@@ -20,10 +20,10 @@ import { HttpError, useApi } from "@/lib/api"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 
 function extractFirstHttpUrl(value: string): string | null {
-  const match = value.match(/https?:\/\/\S+/i)
+  const match = value.match(/https?:\/\/[^\s]+/i)
   if (!match?.[0]) return null
-  // Shared text often includes trailing punctuation after a URL.
-  return match[0].replace(/[)\].,!?;:]+$/, "")
+  // Strip common trailing punctuation that gets caught by \S+
+  return match[0].replace(/[)\].,!?;:'""]+$/, "")
 }
 
 function normalizeHttpUrl(raw: string | null | undefined): string | null {
@@ -46,6 +46,53 @@ function defaultTitleFromUrl(rawUrl: string) {
   }
 }
 
+interface ParsedShare {
+  url: string | null
+  title: string | null
+}
+
+/**
+ * Handles common Chrome/Android share formats:
+ *   - "Page Title\nhttps://..."        (Chrome share)
+ *   - "https://..."                     (plain URL)
+ *   - "Some text with https://... in it"
+ *   - webUrl set directly by the OS
+ */
+function parseSharePayload(intent: {
+  text?: string | null
+  webUrl?: string | null
+  meta?: { title?: string | null } | null
+}): ParsedShare {
+  const rawText = intent.text?.trim() ?? ""
+
+  // URL: prefer the explicit webUrl field, then extract from text
+  const url =
+    normalizeHttpUrl(intent.webUrl) ??
+    normalizeHttpUrl(extractFirstHttpUrl(rawText))
+
+  // Title priority:
+  //   1. meta.title  (some Android apps/browsers include this)
+  //   2. Text that appears before the URL in the shared string
+  //      e.g. Chrome shares "Page Title\nhttps://..."
+  //   3. Hostname fallback
+  const metaTitle = intent.meta?.title?.trim()
+  if (metaTitle) return { url, title: metaTitle }
+
+  if (url && rawText) {
+    const urlPos = rawText.search(/https?:\/\//i)
+    if (urlPos > 0) {
+      const candidate = rawText.slice(0, urlPos).trim()
+      // Accept as title: non-empty, not itself a URL, not too long
+      if (candidate && candidate.length <= 200 && !/https?:\/\//i.test(candidate)) {
+        // Collapse any newlines in the candidate (multiple title lines)
+        return { url, title: candidate.replace(/\s*\n\s*/g, " ") }
+      }
+    }
+  }
+
+  return { url, title: url ? defaultTitleFromUrl(url) : null }
+}
+
 export default function ShareInboxScreen() {
   const palette = usePalette()
   const insets = useSafeAreaInsets()
@@ -55,22 +102,18 @@ export default function ShareInboxScreen() {
   const queryClient = useQueryClient()
   const { hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntentContext()
 
-  const incomingText = useMemo(() => shareIntent.text ?? "", [shareIntent.text])
-  const incomingUrl = useMemo(
-    () => normalizeHttpUrl(shareIntent.webUrl) ?? normalizeHttpUrl(extractFirstHttpUrl(incomingText)),
-    [incomingText, shareIntent.webUrl]
+  const { url: incomingUrl, title: incomingTitle } = useMemo(
+    () => parseSharePayload(shareIntent),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shareIntent.text, shareIntent.webUrl, shareIntent.meta?.title]
   )
-  const incomingTitle = useMemo(() => {
-    if (incomingUrl) return defaultTitleFromUrl(incomingUrl)
-    return "Shared note"
-  }, [incomingUrl])
 
-  const [title, setTitle] = useState(incomingTitle)
+  const [title, setTitle] = useState(incomingTitle ?? "Shared note")
   const [tags, setTags] = useState("shared, mobile")
   const [content, setContent] = useState("")
 
   useEffect(() => {
-    setTitle(incomingTitle)
+    setTitle(incomingTitle ?? "Shared note")
     setContent(incomingUrl ?? "")
   }, [incomingTitle, incomingUrl])
 

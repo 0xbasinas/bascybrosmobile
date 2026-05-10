@@ -60,7 +60,9 @@ steps:
       queue: default
     env:
       CI: "true"
-      GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g"
+      # Medium hosted agent = 16 GB RAM. Give Gradle 6 GB heap with a separate
+      # Kotlin daemon capped at 2 GB, leaving plenty for the OS and Node.
+      GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dkotlin.daemon.jvm.options=-Xmx2g"
     artifact_paths:
       - "android/app/build/outputs/apk/release/app-release.apk"
     command: |
@@ -171,24 +173,31 @@ steps:
               /^android.packagingOptions.pickFirsts=/d
               /^org.gradle.parallel=/d
               /^org.gradle.caching=/d
-              /^org.gradle.configuration-cache=/d
-              /^org.gradle.configuration-cache.problems=/d' android/gradle.properties || true
+              /^org.gradle.daemon=/d
+              /^org.gradle.workers.max=/d
+              /^org.gradle.jvmargs=/d
+              /^org.gradle.configuration-cache/d
+              /^kotlin.compiler.execution.strategy=/d
+              /^kotlin.incremental=/d' android/gradle.properties || true
       {
         echo "MYAPP_UPLOAD_STORE_FILE=app/keystores/release.keystore"
         echo "MYAPP_UPLOAD_KEY_ALIAS=$$ANDROID_KEY_ALIAS"
         echo "MYAPP_UPLOAD_STORE_PASSWORD=$$ANDROID_KEYSTORE_PASSWORD"
         echo "MYAPP_UPLOAD_KEY_PASSWORD=$$ANDROID_KEY_PASSWORD"
         echo "android.packagingOptions.pickFirsts=META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
+        echo "org.gradle.daemon=false"
         echo "org.gradle.parallel=true"
+        echo "org.gradle.workers.max=4"
         echo "org.gradle.caching=true"
-        echo "org.gradle.configuration-cache=true"
-        echo "org.gradle.configuration-cache.problems=warn"
+        echo "kotlin.compiler.execution.strategy=in-process"
+        echo "kotlin.incremental=false"
       } >> android/gradle.properties
 
       # ── Gradle build ─────────────────────────────────────────────────────────
       START_TS=$$(date +%s)
       cd android
-      GRADLE_TASKS="assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease"
+      GRADLE_TASKS="assembleRelease --no-daemon --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease"
 
       if [ "$${PUBLISH_BUILD_SCAN:-false}" = "true" ]; then
         ./gradlew $$GRADLE_TASKS --scan \

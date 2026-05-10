@@ -21,7 +21,20 @@ import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 
 function extractFirstHttpUrl(value: string): string | null {
   const match = value.match(/https?:\/\/\S+/i)
-  return match?.[0] ?? null
+  if (!match?.[0]) return null
+  // Shared text often includes trailing punctuation after a URL.
+  return match[0].replace(/[)\].,!?;:]+$/, "")
+}
+
+function normalizeHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  try {
+    const parsed = new URL(raw.trim())
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
 }
 
 function defaultTitleFromUrl(rawUrl: string) {
@@ -42,35 +55,24 @@ export default function ShareInboxScreen() {
   const queryClient = useQueryClient()
   const { hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntent({ debug: __DEV__ })
 
-  const incomingText = useMemo(() => shareIntent.text?.trim() ?? "", [shareIntent.text])
+  const incomingText = useMemo(() => shareIntent.text ?? "", [shareIntent.text])
   const incomingUrl = useMemo(
-    () => shareIntent.webUrl?.trim() ?? extractFirstHttpUrl(incomingText),
+    () => normalizeHttpUrl(shareIntent.webUrl) ?? normalizeHttpUrl(extractFirstHttpUrl(incomingText)),
     [incomingText, shareIntent.webUrl]
   )
   const incomingTitle = useMemo(() => {
-    const maybeTitle = shareIntent.meta?.title?.trim()
-    if (maybeTitle) return maybeTitle
     if (incomingUrl) return defaultTitleFromUrl(incomingUrl)
     return "Shared note"
-  }, [incomingUrl, shareIntent.meta?.title])
+  }, [incomingUrl])
 
   const [title, setTitle] = useState(incomingTitle)
   const [tags, setTags] = useState("shared, mobile")
   const [content, setContent] = useState("")
 
   useEffect(() => {
-    const chunks: string[] = []
-    if (incomingUrl) {
-      chunks.push(`[${incomingTitle}](${incomingUrl})`)
-    }
-    if (incomingText && incomingText !== incomingUrl) {
-      chunks.push(incomingText)
-    } else if (!incomingUrl && incomingText) {
-      chunks.push(incomingText)
-    }
     setTitle(incomingTitle)
-    setContent(chunks.join("\n\n"))
-  }, [incomingText, incomingTitle, incomingUrl])
+    setContent(incomingUrl ?? "")
+  }, [incomingTitle, incomingUrl])
 
   const create = useMutation<unknown, HttpError, void>({
     mutationFn: async () =>
@@ -116,7 +118,7 @@ export default function ShareInboxScreen() {
         <View style={[styles.banner, { backgroundColor: palette.surface, borderColor: palette.border }]}>
           <Text style={[styles.bannerTitle, { color: palette.text }]}>Shared content ready</Text>
           <Text style={[styles.bannerText, { color: palette.textMuted }]}>
-            {hasShareIntent ? "Review and save it as a note." : "No active shared content."}
+            {hasShareIntent ? "Only the shared URL is kept." : "No active shared content."}
           </Text>
           {error ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}
         </View>

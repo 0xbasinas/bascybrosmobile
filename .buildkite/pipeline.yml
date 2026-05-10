@@ -1,110 +1,68 @@
-##############################################################################
-# Buildkite – Android Release APK
-#
-# Required Buildkite agent environment variables (set via a Pipeline Secret or
-# agent environment hook so they are never stored in source control):
-#
-#   ANDROID_KEYSTORE_BASE64           base64-encoded release keystore
-#   ANDROID_KEYSTORE_PASSWORD         keystore password
-#   ANDROID_KEY_ALIAS                 key alias
-#   ANDROID_KEY_PASSWORD              key password
-#   EXPO_PUBLIC_API_URL               public API URL
-#   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY Clerk publishable key
-#   EXPO_TOKEN                        (optional) EAS CLI token
-#
-# Pipeline-level variables you can set in the Buildkite UI to toggle features:
-#
-#   FORCE_BUILD          "true" to skip change-detection and always build
-#   PUBLISH_BUILD_SCAN   "true" to publish a Gradle build scan
-#   COMPARE_WITH_EAS     "true" to run the EAS cloud benchmark in parallel
-#
-# Agent requirements:
-#   - Ubuntu / Debian host (or equivalent Docker image)
-#   - Java 17 (temurin), Android SDK, Node 20, npm installed on the agent
-#     OR use the queue tag below to route to a dedicated android-build agent.
-##############################################################################
-secrets:
-  - ANDROID_KEYSTORE_BASE64
-  - ANDROID_KEYSTORE_PASSWORD
-  - ANDROID_KEY_ALIAS
-  - ANDROID_KEY_PASSWORD
-  - EXPO_PUBLIC_API_URL
-  - EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
-  - EXPO_TOKEN
-
 agents:
-  queue: android-build   # route every step to an agent with the Android SDK
+  queue: android-build
 
 env:
   GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g"
   CI: "true"
-  # Feature-flag defaults (override in Buildkite UI or via API)
-  FORCE_BUILD:        ${FORCE_BUILD:-false}
-  PUBLISH_BUILD_SCAN: ${PUBLISH_BUILD_SCAN:-false}
-  COMPARE_WITH_EAS:   ${COMPARE_WITH_EAS:-false}
+  FORCE_BUILD: "false"
+  PUBLISH_BUILD_SCAN: "false"
+  COMPARE_WITH_EAS: "false"
 
 steps:
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # 1. Detect mobile-impacting changes
-  #    Writes a shared metadata key "should_build" and "should_prebuild"
-  #    that later steps read with `buildkite-agent meta-data get`.
-  # ──────────────────────────────────────────────────────────────────────────
   - label: ":mag: Detect impacting changes"
-    key:   detect-changes
+    key: detect-changes
     command: |
       set -euo pipefail
 
       SHOULD_BUILD="true"
       SHOULD_PREBUILD="true"
 
-      if [ "${FORCE_BUILD}" = "true" ]; then
+      if [ "$${FORCE_BUILD}" = "true" ]; then
         echo "Force build enabled."
         buildkite-agent meta-data set should_build    "true"
         buildkite-agent meta-data set should_prebuild "true"
         exit 0
       fi
 
-      RANGE_END="${BUILDKITE_COMMIT}"
+      RANGE_END="$${BUILDKITE_COMMIT}"
 
-      # Tag builds: compare against the previous tag
-      if [ -n "${BUILDKITE_TAG:-}" ]; then
-        PREV_TAG="$(git tag --sort=-creatordate | sed -n '2p')"
-        if [ -n "$PREV_TAG" ]; then
-          RANGE_START="$(git rev-list -n 1 "$PREV_TAG")"
+      if [ -n "$${BUILDKITE_TAG:-}" ]; then
+        PREV_TAG="$$(git tag --sort=-creatordate | sed -n '2p')"
+        if [ -n "$$PREV_TAG" ]; then
+          RANGE_START="$$(git rev-list -n 1 "$$PREV_TAG")"
         else
-          RANGE_START="$(git rev-parse "${BUILDKITE_COMMIT}^" 2>/dev/null || true)"
+          RANGE_START="$$(git rev-parse "$${BUILDKITE_COMMIT}^" 2>/dev/null || true)"
         fi
       else
-        RANGE_START="$(git rev-parse "${BUILDKITE_COMMIT}^" 2>/dev/null || true)"
+        RANGE_START="$$(git rev-parse "$${BUILDKITE_COMMIT}^" 2>/dev/null || true)"
       fi
 
       mapfile -t CHANGED_FILES < <(
-        if [ -n "$RANGE_START" ]; then
-          git diff --name-only "$RANGE_START" "$RANGE_END"
+        if [ -n "$$RANGE_START" ]; then
+          git diff --name-only "$$RANGE_START" "$$RANGE_END"
         else
-          git show --name-only --pretty="" "$RANGE_END"
+          git show --name-only --pretty="" "$$RANGE_END"
         fi
       )
 
-      echo "Files in range: ${#CHANGED_FILES[@]}"
+      echo "Files in range: $${#CHANGED_FILES[@]}"
 
-      if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
+      if [ "$${#CHANGED_FILES[@]}" -eq 0 ]; then
         SHOULD_BUILD="true"
         SHOULD_PREBUILD="true"
       else
         MOBILE_IMPACT="false"
         PREBUILD_IMPACT="false"
 
-        for file in "${CHANGED_FILES[@]}"; do
-          case "$file" in
+        for file in "$${CHANGED_FILES[@]}"; do
+          case "$$file" in
             app/*|components/*|lib/*|assets/*|plugins/*|android/*|ios/*|\
             .buildkite/*|app.json|eas.json|package.json|package-lock.json|\
             tsconfig.json|babel.config.*|metro.config.*)
               MOBILE_IMPACT="true"
               ;;
           esac
-          case "$file" in
+          case "$$file" in
             app.json|package.json|package-lock.json|plugins/*|android/*|ios/*|\
             babel.config.*|metro.config.*|expo-env.d.ts)
               PREBUILD_IMPACT="true"
@@ -112,88 +70,69 @@ steps:
           esac
         done
 
-        if [ "$MOBILE_IMPACT" = "false" ]; then
+        if [ "$$MOBILE_IMPACT" = "false" ]; then
           SHOULD_BUILD="false"
           SHOULD_PREBUILD="false"
         else
           if [ -d "android" ]; then
-            SHOULD_PREBUILD="$PREBUILD_IMPACT"
+            SHOULD_PREBUILD="$$PREBUILD_IMPACT"
           else
             SHOULD_PREBUILD="true"
           fi
         fi
       fi
 
-      echo "should_build:    $SHOULD_BUILD"
-      echo "should_prebuild: $SHOULD_PREBUILD"
+      echo "should_build:    $$SHOULD_BUILD"
+      echo "should_prebuild: $$SHOULD_PREBUILD"
 
-      buildkite-agent meta-data set should_build    "$SHOULD_BUILD"
-      buildkite-agent meta-data set should_prebuild "$SHOULD_PREBUILD"
+      buildkite-agent meta-data set should_build    "$$SHOULD_BUILD"
+      buildkite-agent meta-data set should_prebuild "$$SHOULD_PREBUILD"
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # 2. Conditional upload of the dynamic build step.
-  #    Reads meta-data and either injects the real build step or a skip notice.
-  # ──────────────────────────────────────────────────────────────────────────
-  - label:   ":pipeline: Upload build steps"
-    key:     upload-steps
+  - label: ":pipeline: Upload build steps"
+    key: upload-steps
     depends_on: detect-changes
     command: |
       set -euo pipefail
-      SHOULD_BUILD="$(buildkite-agent meta-data get should_build)"
+      SHOULD_BUILD="$$(buildkite-agent meta-data get should_build)"
 
-      if [ "$SHOULD_BUILD" != "true" ]; then
-        cat <<'SKIP' | buildkite-agent pipeline upload
-      steps:
-        - label: ":no_entry_sign: Skipped – no mobile-impacting changes"
-          command: echo "Skipping release APK build."
-      SKIP
+      if [ "$$SHOULD_BUILD" != "true" ]; then
+        echo "No mobile-impacting changes - skipping build."
         exit 0
       fi
 
-      # Inject the main build step dynamically so it only runs when needed
       buildkite-agent pipeline upload .buildkite/steps/build-apk.yml
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # 3. Timing summary (always runs, reads env vars written by the build step)
-  # ──────────────────────────────────────────────────────────────────────────
-  - label:   ":stopwatch: Timing summary"
-    key:     timing-summary
+  - label: ":stopwatch: Timing summary"
+    key: timing-summary
     depends_on: upload-steps
     allow_dependency_failure: true
     command: |
-      INSTALL_SECONDS="${INSTALL_SECONDS:-0}"
-      PREBUILD_SECONDS="${PREBUILD_SECONDS:-0}"
-      LOCAL_BUILD_SECONDS="${LOCAL_BUILD_SECONDS:-0}"
-      EAS_BUILD_SECONDS="${EAS_BUILD_SECONDS:-0}"
-      EAS_BUILD_STATUS="${EAS_BUILD_STATUS:-not-run}"
+      INSTALL_SECONDS="$$(buildkite-agent meta-data get install_seconds    2>/dev/null || echo 0)"
+      PREBUILD_SECONDS="$$(buildkite-agent meta-data get prebuild_seconds  2>/dev/null || echo 0)"
+      LOCAL_BUILD_SECONDS="$$(buildkite-agent meta-data get local_build_seconds 2>/dev/null || echo 0)"
+      EAS_BUILD_SECONDS="$$(buildkite-agent meta-data get eas_build_seconds 2>/dev/null || echo 0)"
+      EAS_BUILD_STATUS="$$(buildkite-agent meta-data get eas_build_status  2>/dev/null || echo not-run)"
 
-      # Pull per-build timings from meta-data (set by the build step)
-      INSTALL_SECONDS="$(buildkite-agent meta-data get install_seconds    2>/dev/null || echo 0)"
-      PREBUILD_SECONDS="$(buildkite-agent meta-data get prebuild_seconds  2>/dev/null || echo 0)"
-      LOCAL_BUILD_SECONDS="$(buildkite-agent meta-data get local_build_seconds 2>/dev/null || echo 0)"
-      EAS_BUILD_SECONDS="$(buildkite-agent meta-data get eas_build_seconds 2>/dev/null || echo 0)"
-      EAS_BUILD_STATUS="$(buildkite-agent meta-data get eas_build_status  2>/dev/null || echo not-run)"
-
-      INSTALL_MINUTES=$(awk  "BEGIN {printf \"%.2f\", $INSTALL_SECONDS  / 60}")
-      PREBUILD_MINUTES=$(awk "BEGIN {printf \"%.2f\", $PREBUILD_SECONDS / 60}")
-      LOCAL_MINUTES=$(awk    "BEGIN {printf \"%.2f\", $LOCAL_BUILD_SECONDS / 60}")
-      EAS_MINUTES=$(awk      "BEGIN {printf \"%.2f\", $EAS_BUILD_SECONDS   / 60}")
+      INSTALL_MINUTES=$$(awk  "BEGIN {printf \"%.2f\", $$INSTALL_SECONDS  / 60}")
+      PREBUILD_MINUTES=$$(awk "BEGIN {printf \"%.2f\", $$PREBUILD_SECONDS / 60}")
+      LOCAL_MINUTES=$$(awk    "BEGIN {printf \"%.2f\", $$LOCAL_BUILD_SECONDS / 60}")
+      EAS_MINUTES=$$(awk      "BEGIN {printf \"%.2f\", $$EAS_BUILD_SECONDS   / 60}")
 
       RECOMMENDATION="Use local Gradle APK workflow as default."
-      if [ "$EAS_BUILD_STATUS" = "completed" ] && \
-         [ "$EAS_BUILD_SECONDS"   -gt 0 ] && \
-         [ "$LOCAL_BUILD_SECONDS" -gt 0 ]; then
-        if [ "$EAS_BUILD_SECONDS" -lt "$LOCAL_BUILD_SECONDS" ]; then
+      if [ "$$EAS_BUILD_STATUS" = "completed" ] && \
+         [ "$$EAS_BUILD_SECONDS"   -gt 0 ] && \
+         [ "$$LOCAL_BUILD_SECONDS" -gt 0 ]; then
+        if [ "$$EAS_BUILD_SECONDS" -lt "$$LOCAL_BUILD_SECONDS" ]; then
           RECOMMENDATION="EAS cloud is currently faster for this branch/profile."
         fi
       fi
 
       echo "--- Android release build timing"
-      printf "%-42s %8s %8s\n" "Phase"                         "Seconds" "Minutes"
-      printf "%-42s %8s %8s\n" "npm install"                   "$INSTALL_SECONDS"      "$INSTALL_MINUTES"
-      printf "%-42s %8s %8s\n" "expo prebuild"                 "$PREBUILD_SECONDS"     "$PREBUILD_MINUTES"
-      printf "%-42s %8s %8s\n" "local Gradle assembleRelease"  "$LOCAL_BUILD_SECONDS"  "$LOCAL_MINUTES"
-      printf "%-42s %8s %8s\n" "optional EAS cloud build"      "$EAS_BUILD_SECONDS"    "$EAS_MINUTES"
+      printf "%-42s %8s %8s\n" "Phase"                        "Seconds" "Minutes"
+      printf "%-42s %8s %8s\n" "npm install"                  "$$INSTALL_SECONDS"      "$$INSTALL_MINUTES"
+      printf "%-42s %8s %8s\n" "expo prebuild"                "$$PREBUILD_SECONDS"     "$$PREBUILD_MINUTES"
+      printf "%-42s %8s %8s\n" "local Gradle assembleRelease" "$$LOCAL_BUILD_SECONDS"  "$$LOCAL_MINUTES"
+      printf "%-42s %8s %8s\n" "optional EAS cloud build"     "$$EAS_BUILD_SECONDS"    "$$EAS_MINUTES"
       echo ""
-      echo "EAS benchmark status : $EAS_BUILD_STATUS"
-      echo "Recommendation       : $RECOMMENDATION"
+      echo "EAS benchmark status : $$EAS_BUILD_STATUS"
+      echo "Recommendation       : $$RECOMMENDATION"

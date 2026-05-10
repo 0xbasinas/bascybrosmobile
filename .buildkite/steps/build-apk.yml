@@ -1,25 +1,37 @@
 steps:
-  - label: ":npm: Install dependencies"
-    key: npm-install
+  - label: ":npm: :expo: Install & prebuild"
+    key: setup
     agents:
       queue: default
+    env:
+      CI: "true"
+      NODE_ENV: production
     command: |
       set -euo pipefail
 
-      # If stored in Buildkite Secrets, fetch them explicitly; Pipeline Env Vars are already set.
+      # ── Node.js version check ────────────────────────────────────────────────
+      # Pin to Node 22 LTS for full compatibility with all packages.
+      export NVM_DIR="$${HOME}/.nvm"
+      # shellcheck disable=SC1091
+      [ -s "$$NVM_DIR/nvm.sh" ] && \. "$$NVM_DIR/nvm.sh"
+      nvm install 22 --lts
+      nvm use 22
+      echo "Node now: $$(node -v)"
+
+      # ── Env validation ───────────────────────────────────────────────────────
       if [ -z "$${EXPO_PUBLIC_API_URL:-}" ]; then
         export EXPO_PUBLIC_API_URL="$$(buildkite-agent secret get EXPO_PUBLIC_API_URL 2>/dev/null || true)"
       fi
       if [ -z "$${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:-}" ]; then
         export EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="$$(buildkite-agent secret get EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY 2>/dev/null || true)"
       fi
-
       if [ -z "$${EXPO_PUBLIC_API_URL:-}" ] || [ -z "$${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:-}" ]; then
         echo "Missing EXPO_PUBLIC_API_URL or EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY."
         echo "Set them in Pipeline Settings > Environment Variables, or add them to Buildkite Secrets."
         exit 1
       fi
 
+      # ── npm install ──────────────────────────────────────────────────────────
       START_TS=$$(date +%s)
       npm ci --legacy-peer-deps --prefer-offline --no-audit
       END_TS=$$(date +%s)
@@ -27,15 +39,8 @@ steps:
       echo "npm install took $${INSTALL_SECONDS}s"
       buildkite-agent meta-data set install_seconds "$$INSTALL_SECONDS"
 
-  - label: ":expo: Expo prebuild"
-    key: expo-prebuild
-    depends_on: npm-install
-    agents:
-      queue: default
-    command: |
-      set -euo pipefail
+      # ── Expo prebuild ────────────────────────────────────────────────────────
       SHOULD_PREBUILD="$$(buildkite-agent meta-data get should_prebuild)"
-
       if [ "$$SHOULD_PREBUILD" != "true" ]; then
         echo "Skipping expo prebuild: no prebuild-impacting files changed."
         buildkite-agent meta-data set prebuild_seconds "0"
@@ -43,22 +48,62 @@ steps:
       fi
 
       START_TS=$$(date +%s)
-      npx expo prebuild --platform android --non-interactive
+      # CI=1 is already set in env; --non-interactive is not valid for this expo version
+      npx expo prebuild --platform android
       END_TS=$$(date +%s)
       PREBUILD_SECONDS=$$((END_TS - START_TS))
       echo "expo prebuild took $${PREBUILD_SECONDS}s"
       buildkite-agent meta-data set prebuild_seconds "$$PREBUILD_SECONDS"
 
-  - label: ":shield: Validate Android permissions"
-    key: validate-permissions
-    depends_on: expo-prebuild
+  - label: ":shield: :hammer: Validate & build APK"
+    key: gradle-build
+    depends_on: setup
     agents:
       queue: default
+    env:
+      CI: "true"
+      GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g"
+    artifact_paths:
+      - "android/app/build/outputs/apk/release/app-release.apk"
     command: |
       set -euo pipefail
+
+      # ── Env validation ───────────────────────────────────────────────────────
+      if [ -z "$${EXPO_PUBLIC_API_URL:-}" ]; then
+        export EXPO_PUBLIC_API_URL="$$(buildkite-agent secret get EXPO_PUBLIC_API_URL 2>/dev/null || true)"
+      fi
+      if [ -z "$${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:-}" ]; then
+        export EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="$$(buildkite-agent secret get EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY 2>/dev/null || true)"
+      fi
+
+      # ── Android signing secrets ──────────────────────────────────────────────
+      for secret_var in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+        if [ -z "$${!secret_var:-}" ]; then
+          val="$$(buildkite-agent secret get "$$secret_var" 2>/dev/null || true)"
+          export "$$secret_var=$$val"
+        fi
+      done
+      if [ -z "$${ANDROID_KEYSTORE_BASE64:-}"   ] || \
+         [ -z "$${ANDROID_KEYSTORE_PASSWORD:-}" ] || \
+         [ -z "$${ANDROID_KEY_ALIAS:-}"         ] || \
+         [ -z "$${ANDROID_KEY_PASSWORD:-}"      ]; then
+        echo "Missing one or more Android signing secrets."
+        exit 1
+      fi
+
+      # ── npm install (needed again since each step has a fresh workspace) ─────
+      npm ci --legacy-peer-deps --prefer-offline --no-audit
+
+      # ── Expo prebuild (regenerate android/ for this step's workspace) ────────
+      SHOULD_PREBUILD="$$(buildkite-agent meta-data get should_prebuild)"
+      if [ "$$SHOULD_PREBUILD" = "true" ]; then
+        npx expo prebuild --platform android
+      fi
+
+      # ── Android permissions validation ───────────────────────────────────────
       MANIFEST="android/app/src/main/AndroidManifest.xml"
       if [ ! -f "$$MANIFEST" ]; then
-        echo "AndroidManifest.xml not found at $$MANIFEST"
+        echo "AndroidManifest.xml not found at $$MANIFEST — prebuild may have failed."
         exit 1
       fi
       FORBIDDEN=(
@@ -79,26 +124,7 @@ steps:
       done
       echo "All permission checks passed."
 
-  - label: ":hammer: Gradle assembleRelease"
-    key: gradle-build
-    depends_on: validate-permissions
-    agents:
-      queue: default
-    env:
-      GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g"
-    artifact_paths:
-      - "android/app/build/outputs/apk/release/app-release.apk"
-    command: |
-      set -euo pipefail
-
-      if [ -z "$${ANDROID_KEYSTORE_BASE64:-}"   ] || \
-         [ -z "$${ANDROID_KEYSTORE_PASSWORD:-}" ] || \
-         [ -z "$${ANDROID_KEY_ALIAS:-}"         ] || \
-         [ -z "$${ANDROID_KEY_PASSWORD:-}"      ]; then
-        echo "Missing one or more Android signing secrets."
-        exit 1
-      fi
-
+      # ── Keystore setup ───────────────────────────────────────────────────────
       mkdir -p android/app/keystores
       echo "$$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystores/release.keystore
 
@@ -120,6 +146,7 @@ steps:
         echo "org.gradle.configuration-cache.problems=warn"
       } >> android/gradle.properties
 
+      # ── Gradle build ─────────────────────────────────────────────────────────
       START_TS=$$(date +%s)
       cd android
       GRADLE_TASKS="assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease"
@@ -137,12 +164,11 @@ steps:
       echo "Gradle build took $${LOCAL_BUILD_SECONDS}s"
       buildkite-agent meta-data set local_build_seconds "$$LOCAL_BUILD_SECONDS"
 
-      rm -f ../android/app/keystores/release.keystore || true
-      sed -i '/^MYAPP_UPLOAD_/d' ../gradle.properties || true
+      rm -f android/app/keystores/release.keystore || true
 
   - label: ":cloud: EAS cloud benchmark (optional)"
     key: eas-benchmark
-    depends_on: validate-permissions
+    depends_on: setup
     if: build.env("COMPARE_WITH_EAS") == "true"
     agents:
       queue: default

@@ -7,7 +7,7 @@ import { StatusBar } from "expo-status-bar"
 import { useEffect } from "react"
 import { LogBox, useColorScheme } from "react-native"
 import "react-native-reanimated"
-import { useShareIntent } from "expo-share-intent"
+import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent"
 
 import { ReactQueryProvider } from "@/lib/query"
 import { CLERK_PUBLISHABLE_KEY } from "@/lib/config"
@@ -18,7 +18,7 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme()
-  const { hasShareIntent } = useShareIntent({ debug: __DEV__ })
+
   useEffect(() => {
     if (__DEV__) {
       LogBox.ignoreLogs([
@@ -28,30 +28,36 @@ export default function RootLayout() {
   }, [])
 
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
-      <ReactQueryProvider>
-        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          <ShareIntentRedirector hasShareIntent={hasShareIntent} />
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-            <Stack.Screen name="sign-up" options={{ headerShown: false }} />
-            <Stack.Screen name="oauth-callback" options={{ headerShown: false }} />
-            <Stack.Screen name="share-inbox" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="unauthorized"
-              options={{ headerShown: false, presentation: "modal" }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </ReactQueryProvider>
-    </ClerkProvider>
+    // ShareIntentProvider wraps everything so all screens share one intent state.
+    // android:launchMode="singleTask" (in app.json) prevents a second activity
+    // from spawning when a share arrives, so ClerkProvider is never duplicated.
+    <ShareIntentProvider>
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+        <ReactQueryProvider>
+          <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+            <ShareIntentRedirector />
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+              <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+              <Stack.Screen name="oauth-callback" options={{ headerShown: false }} />
+              <Stack.Screen name="share-inbox" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="unauthorized"
+                options={{ headerShown: false, presentation: "modal" }}
+              />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </ReactQueryProvider>
+      </ClerkProvider>
+    </ShareIntentProvider>
   )
 }
 
-function ShareIntentRedirector({ hasShareIntent }: { hasShareIntent: boolean }) {
+function ShareIntentRedirector() {
+  const { hasShareIntent } = useShareIntentContext()
   const { isLoaded, isSignedIn } = useAuth()
   const router = useRouter()
   const pathname = usePathname()

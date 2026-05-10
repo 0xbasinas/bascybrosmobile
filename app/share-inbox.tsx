@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@clerk/expo"
 import { Redirect, useRouter } from "expo-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useShareIntent } from "expo-share-intent"
+import { useShareIntentContext } from "expo-share-intent"
 import {
   Alert,
   KeyboardAvoidingView,
@@ -53,7 +53,7 @@ export default function ShareInboxScreen() {
   const { requestJson } = useApi()
   const { isLoaded, isSignedIn } = useAuth()
   const queryClient = useQueryClient()
-  const { hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntent({ debug: __DEV__ })
+  const { hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntentContext()
 
   const incomingText = useMemo(() => shareIntent.text ?? "", [shareIntent.text])
   const incomingUrl = useMemo(

@@ -9,13 +9,11 @@ steps:
     command: |
       set -euo pipefail
 
-      # ── Node.js version check ────────────────────────────────────────────────
-      # Pin to Node 22 LTS for full compatibility with all packages.
-      export NVM_DIR="$${HOME}/.nvm"
-      # shellcheck disable=SC1091
-      [ -s "$$NVM_DIR/nvm.sh" ] && \. "$$NVM_DIR/nvm.sh"
-      nvm install 22 --lts
-      nvm use 22
+      # ── Node.js version — upgrade to 22 LTS via the `n` version manager ────────
+      # `n` installs as a plain npm package so no curl/sudo/nvm needed.
+      npm install -g n
+      n 22
+      hash -r          # make the shell pick up the newly installed node binary
       echo "Node now: $$(node -v)"
 
       # ── Env validation ───────────────────────────────────────────────────────
@@ -67,6 +65,12 @@ steps:
       - "android/app/build/outputs/apk/release/app-release.apk"
     command: |
       set -euo pipefail
+
+      # ── Node.js 22 LTS ───────────────────────────────────────────────────────
+      npm install -g n
+      n 22
+      hash -r
+      echo "Node now: $$(node -v)"
 
       # ── Env validation ───────────────────────────────────────────────────────
       if [ -z "$${EXPO_PUBLIC_API_URL:-}" ]; then

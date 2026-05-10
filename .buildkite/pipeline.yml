@@ -23,6 +23,14 @@
 #   - Java 17 (temurin), Android SDK, Node 20, npm installed on the agent
 #     OR use the queue tag below to route to a dedicated android-build agent.
 ##############################################################################
+secrets:
+  - ANDROID_KEYSTORE_BASE64
+  - ANDROID_KEYSTORE_PASSWORD
+  - ANDROID_KEY_ALIAS
+  - ANDROID_KEY_PASSWORD
+  - EXPO_PUBLIC_API_URL
+  - EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+  - EXPO_TOKEN
 
 agents:
   queue: android-build   # route every step to an agent with the Android SDK

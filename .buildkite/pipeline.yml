@@ -1,5 +1,5 @@
 agents:
-  queue: android-build
+  queue: default
 
 env:
   GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g"

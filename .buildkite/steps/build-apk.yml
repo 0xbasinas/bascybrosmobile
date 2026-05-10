@@ -2,7 +2,7 @@ steps:
   - label: ":npm: Install dependencies"
     key: npm-install
     agents:
-      queue: android-build
+      queue: default
     command: |
       set -euo pipefail
 
@@ -22,7 +22,7 @@ steps:
     key: expo-prebuild
     depends_on: npm-install
     agents:
-      queue: android-build
+      queue: default
     command: |
       set -euo pipefail
       SHOULD_PREBUILD="$$(buildkite-agent meta-data get should_prebuild)"
@@ -44,7 +44,7 @@ steps:
     key: validate-permissions
     depends_on: expo-prebuild
     agents:
-      queue: android-build
+      queue: default
     command: |
       set -euo pipefail
       MANIFEST="android/app/src/main/AndroidManifest.xml"
@@ -74,7 +74,7 @@ steps:
     key: gradle-build
     depends_on: validate-permissions
     agents:
-      queue: android-build
+      queue: default
     env:
       GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=2g -Dkotlin.daemon.jvm.options=-Xmx2g"
     artifact_paths:
@@ -136,7 +136,7 @@ steps:
     depends_on: validate-permissions
     if: build.env("COMPARE_WITH_EAS") == "true"
     agents:
-      queue: android-build
+      queue: default
     artifact_paths:
       - "dist/eas-preview.apk"
     command: |

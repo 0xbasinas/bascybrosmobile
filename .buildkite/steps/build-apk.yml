@@ -72,6 +72,41 @@ steps:
       hash -r
       echo "Node now: $$(node -v)"
 
+      # ── Java 17 (Buildkite Linux image ships without Java) ───────────────────
+      if ! command -v java &>/dev/null; then
+        echo "Installing OpenJDK 17..."
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends openjdk-17-jdk
+      fi
+      export JAVA_HOME="$$(dirname $$(dirname $$(readlink -f $$(which java))))"
+      export PATH="$$JAVA_HOME/bin:$$PATH"
+      echo "Java: $$(java -version 2>&1 | head -1)"
+
+      # ── Android SDK (download command-line tools + required SDK components) ──
+      export ANDROID_HOME="$${HOME}/android-sdk"
+      export ANDROID_SDK_ROOT="$$ANDROID_HOME"
+      export PATH="$$ANDROID_HOME/cmdline-tools/latest/bin:$$ANDROID_HOME/platform-tools:$$PATH"
+
+      if [ ! -d "$$ANDROID_HOME/cmdline-tools/latest" ]; then
+        echo "Installing Android SDK command-line tools..."
+        mkdir -p "$$ANDROID_HOME/cmdline-tools"
+        curl -sL "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
+          -o /tmp/cmdtools.zip
+        unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools-extract
+        mv /tmp/cmdtools-extract/cmdline-tools "$$ANDROID_HOME/cmdline-tools/latest"
+        rm -rf /tmp/cmdtools-extract /tmp/cmdtools.zip
+      fi
+
+      echo "Accepting SDK licenses and installing SDK components..."
+      yes | sdkmanager --licenses > /dev/null 2>&1 || true
+      sdkmanager \
+        "platform-tools" \
+        "platforms;android-35" \
+        "build-tools;35.0.0" \
+        "ndk;26.1.10909125" > /dev/null
+
+      echo "Android SDK ready at $$ANDROID_HOME"
+
       # ── Env validation ───────────────────────────────────────────────────────
       if [ -z "$${EXPO_PUBLIC_API_URL:-}" ]; then
         export EXPO_PUBLIC_API_URL="$$(buildkite-agent secret get EXPO_PUBLIC_API_URL 2>/dev/null || true)"

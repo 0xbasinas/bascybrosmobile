@@ -50,12 +50,7 @@
         "expo-share-intent",
         {
           "disableIOS": true,
-          "androidIntentFilters": [
-            "text/*"
-          ],
-          "androidMainActivityAttributes": {
-            "android:launchMode": "singleTask"
-          }
+          "disableAndroid": true
         }
       ],
       [
@@ -74,7 +69,8 @@
           "backgroundColor": "#000000"
         }
       ],
-      "./plugins/with-android-share-task-root.js"
+      "./plugins/with-android-share-task-root.js",
+      "./plugins/with-android-share-receiver.js"
     ],
     "experiments": {
       "typedRoutes": true,

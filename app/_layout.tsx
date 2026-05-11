@@ -28,9 +28,9 @@ export default function RootLayout() {
 
   return (
     // ShareIntentProvider wraps everything so all screens share one intent state.
-    // Android: singleTask + with-android-share-task-root (see plugins/) relaunch
-    // when the host embeds MainActivity in its task (Chrome/Google share), which
-    // otherwise spawned a second React tree and duplicate ClerkProvider errors.
+    // Android uses a trampoline ShareReceiverActivity plus a task-root fallback
+    // so Google/Chrome-hosted share previews deliver intents into the existing
+    // app task instead of spawning a second React tree.
     <ShareIntentProvider>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
         <ReactQueryProvider>

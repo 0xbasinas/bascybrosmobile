@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@clerk/expo"
 import { Redirect, useRouter } from "expo-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -51,6 +51,17 @@ interface ParsedShare {
   title: string | null
 }
 
+function firstSharedString(value: unknown): string | null {
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = firstSharedString(item)
+      if (nested) return nested
+    }
+  }
+  return null
+}
+
 /**
  * Handles common Chrome/Android share formats:
  *   - "Page Title\nhttps://..."        (Chrome share)
@@ -59,15 +70,15 @@ interface ParsedShare {
  *   - webUrl set directly by the OS
  */
 function parseSharePayload(intent: {
-  text?: string | null
-  webUrl?: string | null
-  meta?: { title?: string | null } | null
-}): ParsedShare {
-  const rawText = intent.text?.trim() ?? ""
+  text?: unknown
+  webUrl?: unknown
+  meta?: { title?: unknown } | null
+} | null | undefined): ParsedShare {
+  const rawText = firstSharedString(intent?.text)?.trim() ?? ""
 
   // URL: prefer the explicit webUrl field, then extract from text
   const url =
-    normalizeHttpUrl(intent.webUrl) ??
+    normalizeHttpUrl(firstSharedString(intent?.webUrl)) ??
     normalizeHttpUrl(extractFirstHttpUrl(rawText))
 
   // Title priority:
@@ -75,7 +86,7 @@ function parseSharePayload(intent: {
   //   2. Text that appears before the URL in the shared string
   //      e.g. Chrome shares "Page Title\nhttps://..."
   //   3. Hostname fallback
-  const metaTitle = intent.meta?.title?.trim()
+  const metaTitle = firstSharedString(intent?.meta?.title)?.trim()
   if (metaTitle) return { url, title: metaTitle }
 
   if (url && rawText) {
@@ -102,11 +113,7 @@ export default function ShareInboxScreen() {
   const queryClient = useQueryClient()
   const { hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntentContext()
 
-  const { url: incomingUrl, title: incomingTitle } = useMemo(
-    () => parseSharePayload(shareIntent),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shareIntent.text, shareIntent.webUrl, shareIntent.meta?.title]
-  )
+  const { url: incomingUrl, title: incomingTitle } = parseSharePayload(shareIntent)
 
   const [title, setTitle] = useState(incomingTitle ?? "Shared note")
   const [tags, setTags] = useState("shared, mobile")

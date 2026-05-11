@@ -12,10 +12,12 @@ import {
 import { useLocalSearchParams } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AppTextInput } from "@/components/ui/input"
 import { MarkdownView } from "@/components/markdown"
 import { LoadingState, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { consumeAssistantStream } from "@/lib/assistant-stream"
@@ -26,6 +28,7 @@ type LiveMessage = AssistantMessage & { pending?: boolean }
 
 export default function AssistantChatScreen() {
   const palette = usePalette()
+  const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<{ chatId: string }>()
   const chatId = String(params.chatId ?? "")
   const { request, requestJson } = useApi()
@@ -196,6 +199,17 @@ export default function AssistantChatScreen() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >
+        {query.data?.chat ? (
+          <TabHero
+            icon="sparkles-outline"
+            eyebrow="Workspace chat"
+            description={query.data.chat.title}
+            stats={[
+              { label: "Messages", value: String(liveMessages.length) },
+              { label: "Mode", value: webSearch ? "Web + workspace" : "Workspace" },
+            ]}
+          />
+        ) : null}
         {query.isLoading ? (
           <LoadingState label="Loading conversation..." style={styles.loading} />
         ) : query.error ? (
@@ -223,63 +237,76 @@ export default function AssistantChatScreen() {
 
       <View
         style={[
-          styles.composer,
+          styles.composerOuter,
           {
             backgroundColor: palette.background,
-            borderTopColor: palette.border,
+            paddingBottom: Math.max(insets.bottom, Spacing.sm),
           },
         ]}
       >
-        <View style={styles.composerToggleRow}>
-          <View style={styles.toggleGroup}>
-            <Switch value={webSearch} onValueChange={setWebSearch} />
-            <Text variant="muted" selectable style={styles.toggleText}>
-              Web search
-            </Text>
-          </View>
-          {streaming ? (
-            <Pressable
-              onPress={handleStop}
-              hitSlop={6}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <Text selectable style={{ color: palette.danger, fontSize: FontSize.xs, fontWeight: "600" }}>
-                Stop
+        <View
+          style={[
+            styles.composerCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <View style={styles.composerToggleRow}>
+            <View style={styles.toggleGroup}>
+              <Switch value={webSearch} onValueChange={setWebSearch} />
+              <Text variant="muted" selectable style={styles.toggleText}>
+                Web search
               </Text>
-            </Pressable>
-          ) : null}
-        </View>
+            </View>
+            {streaming ? (
+              <Pressable
+                onPress={handleStop}
+                hitSlop={6}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              >
+                <Text
+                  selectable
+                  style={{ color: palette.danger, fontSize: FontSize.xs, fontWeight: "600" }}
+                >
+                  Stop
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
 
-        <View style={styles.composerRow}>
-          <AppTextInput
-            placeholder="Message the assistant..."
-            value={prompt}
-            onChangeText={setPrompt}
-            multiline
-            style={{ flex: 1, minHeight: 44, maxHeight: 140 }}
-            editable={!streaming}
-          />
-          <Pressable
-            onPress={handleSend}
-            disabled={streaming || !prompt.trim()}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.sendButton,
-              {
-                backgroundColor:
-                  streaming || !prompt.trim() ? palette.surfaceMuted : palette.primary,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <Ionicons
-              name="arrow-up"
-              size={20}
-              color={
-                streaming || !prompt.trim() ? palette.textMuted : palette.primaryText
-              }
+          <View style={styles.composerRow}>
+            <AppTextInput
+              placeholder="Message the assistant..."
+              value={prompt}
+              onChangeText={setPrompt}
+              multiline
+              style={{ flex: 1, minHeight: 48, maxHeight: 140 }}
+              editable={!streaming}
             />
-          </Pressable>
+            <Pressable
+              onPress={handleSend}
+              disabled={streaming || !prompt.trim()}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.sendButton,
+                {
+                  backgroundColor:
+                    streaming || !prompt.trim() ? palette.surfaceMuted : palette.primary,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Ionicons
+                name="arrow-up"
+                size={20}
+                color={
+                  streaming || !prompt.trim() ? palette.textMuted : palette.primaryText
+                }
+              />
+            </Pressable>
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -297,8 +324,6 @@ function MessageBubble({ message }: { message: LiveMessage }) {
           backgroundColor: isUser ? palette.primary : palette.surface,
           borderColor: palette.border,
           alignSelf: isUser ? "flex-end" : "flex-start",
-          marginLeft: isUser ? Spacing.xl : 0,
-          marginRight: isUser ? 0 : Spacing.xl,
         },
       ]}
     >
@@ -333,8 +358,8 @@ function MessageBubble({ message }: { message: LiveMessage }) {
 const styles = StyleSheet.create({
   transcript: {
     padding: Spacing.lg,
-    gap: Spacing.md,
-    paddingBottom: Spacing.xxl,
+    gap: Spacing.lg,
+    paddingBottom: Spacing.xl,
   },
   loading: { padding: Spacing.xl, alignItems: "center" },
   noticeContent: {
@@ -342,15 +367,19 @@ const styles = StyleSheet.create({
   },
   bubble: {
     borderRadius: Radius.lg,
-    padding: Spacing.md,
+    padding: Spacing.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    maxWidth: "100%",
+    maxWidth: "86%",
   },
-  composer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+  composerOuter: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
+  },
+  composerCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
   composerToggleRow: {
@@ -372,8 +401,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   sendButton: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",

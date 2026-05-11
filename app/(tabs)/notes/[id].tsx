@@ -8,6 +8,7 @@ import { AppTextInput } from "@/components/ui/input"
 import { MarkdownView } from "@/components/markdown"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingScreen, PageField, PageScrollView, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
@@ -107,32 +108,47 @@ export default function NoteDetailScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
+      <TabHero
+        icon={editing ? "create-outline" : "document-text-outline"}
+        eyebrow={editing ? "Editing note" : "Saved note"}
+        description={editing ? "Update the title, tags, or markdown content." : note.title}
+        stats={[
+          { label: "Updated", value: formatDate(note.updatedAt) },
+          {
+            label: "Tags",
+            value: note.tags
+              ? String(note.tags.split(",").map((tag) => tag.trim()).filter(Boolean).length)
+              : "0",
+          },
+        ]}
+      />
       {editing ? (
         <PageSection
-          title="Edit note"
-          description="Update the title, tags, or markdown content."
+          title="Make changes"
+          description="Refine the structure first, then update the markdown body."
           contentStyle={styles.sectionContent}
           footer={
             <>
               <AppButton
                 title="Cancel"
                 variant="outline"
+                fullWidth
                 onPress={() => {
                   setEditing(false)
                   setTitle(note.title)
                   setTags(note.tags)
                   setContent(note.contentMarkdown)
                 }}
-                style={styles.flex}
               />
               <AppButton
                 title="Save"
                 onPress={handleSave}
                 loading={save.isPending}
-                style={styles.flex}
+                fullWidth
               />
             </>
           }
+          footerStyle={styles.footer}
         >
           <PageField label="Title" description="Keep the note name concise and recognizable.">
             <AppTextInput value={title} onChangeText={setTitle} maxLength={200} />
@@ -151,7 +167,7 @@ export default function NoteDetailScreen() {
         </PageSection>
       ) : (
         <PageSection
-          title={note.title}
+          title="Markdown content"
           description={note.tags ? `Tags: ${note.tags}` : "No tags added yet."}
           contentStyle={styles.sectionContent}
           footer={
@@ -159,17 +175,19 @@ export default function NoteDetailScreen() {
               <AppButton
                 title="Delete note"
                 variant="danger"
+                fullWidth
                 onPress={handleDelete}
                 loading={remove.isPending}
-                style={styles.flex}
               />
               <AppButton
                 title="Edit note"
+                variant="outline"
+                fullWidth
                 onPress={() => setEditing(true)}
-                style={styles.flex}
               />
             </>
           }
+          footerStyle={styles.footer}
         >
           <Text variant="muted" selectable>
             Updated {formatDate(note.updatedAt)}
@@ -188,10 +206,11 @@ const styles = StyleSheet.create({
   sectionContent: {
     gap: Spacing.lg,
   },
+  footer: {
+    flexDirection: "column",
+    gap: Spacing.sm,
+  },
   editor: {
     minHeight: 320,
-  },
-  flex: {
-    flex: 1,
   },
 })

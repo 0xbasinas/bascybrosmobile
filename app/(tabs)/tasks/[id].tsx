@@ -9,6 +9,7 @@ import { MarkdownView } from "@/components/markdown"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingScreen, PageField, PageScrollView, PageSection } from "@/components/ui/page"
 import { Segmented } from "@/components/ui/segmented"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
@@ -113,32 +114,42 @@ export default function TaskDetailScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
+      <TabHero
+        icon={editing ? "create-outline" : "checkmark-done-outline"}
+        eyebrow={editing ? "Editing task" : "Task overview"}
+        description={editing ? "Adjust the title, status, or supporting markdown details." : task.title}
+        stats={[
+          { label: "Status", value: TASK_STATUS_LABELS[status] },
+          { label: "Details", value: task.detailsMarkdown.trim() ? "Added" : "None" },
+        ]}
+      />
       {editing ? (
         <PageSection
-          title="Edit task"
-          description="Adjust the title, status, or supporting markdown details."
+          title="Update task details"
+          description="Keep the task easy to scan and add extra context only where it helps execution."
           contentStyle={styles.sectionContent}
           footer={
             <>
               <AppButton
                 title="Cancel"
                 variant="outline"
+                fullWidth
                 onPress={() => {
                   setEditing(false)
                   setTitle(task.title)
                   setDetails(task.detailsMarkdown)
                   setStatus(task.status)
                 }}
-                style={styles.flex}
               />
               <AppButton
                 title="Save"
                 loading={save.isPending}
                 onPress={() => save.mutate()}
-                style={styles.flex}
+                fullWidth
               />
             </>
           }
+          footerStyle={styles.footer}
         >
           <PageField label="Title" description="Keep it short enough to scan in the task list.">
             <AppTextInput value={title} onChangeText={setTitle} maxLength={200} />
@@ -157,7 +168,7 @@ export default function TaskDetailScreen() {
         </PageSection>
       ) : (
         <PageSection
-          title={task.title}
+          title="Task details"
           description={TASK_STATUS_LABELS[task.status]}
           contentStyle={styles.sectionContent}
           footer={
@@ -165,17 +176,19 @@ export default function TaskDetailScreen() {
               <AppButton
                 title="Delete"
                 variant="danger"
+                fullWidth
                 onPress={handleDelete}
                 loading={remove.isPending}
-                style={styles.flex}
               />
               <AppButton
                 title="Edit"
+                variant="outline"
+                fullWidth
                 onPress={() => setEditing(true)}
-                style={styles.flex}
               />
             </>
           }
+          footerStyle={styles.footer}
         >
           <PageField
             label="Quick status"
@@ -210,10 +223,11 @@ const styles = StyleSheet.create({
     minHeight: 220,
   },
   sectionContent: { gap: Spacing.lg },
+  footer: {
+    flexDirection: "column",
+    gap: Spacing.sm,
+  },
   editor: {
     minHeight: 240,
-  },
-  flex: {
-    flex: 1,
   },
 })

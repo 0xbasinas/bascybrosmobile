@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppButton } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { FontSize, Spacing, usePalette } from "@/lib/theme"
@@ -63,11 +64,12 @@ export default function AssistantListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.pagePadding}>
-        <PageSection
-          title="Workspace assistant"
+      <View style={styles.topPadding}>
+        <TabHero
+          icon="sparkles-outline"
+          eyebrow="Workspace AI"
           description="Keep ongoing chats about notes, tasks, and your broader workspace."
-          contentStyle={styles.toolbarSection}
+          stats={[{ label: "Conversations", value: String(chats.length) }]}
         >
           <AppButton
             title="New chat"
@@ -75,7 +77,7 @@ export default function AssistantListScreen() {
             onPress={() => create.mutate()}
             fullWidth
           />
-        </PageSection>
+        </TabHero>
       </View>
 
       {query.isLoading ? (
@@ -101,6 +103,7 @@ export default function AssistantListScreen() {
         <FlatList
           data={chats}
           keyExtractor={(item) => item.id}
+          contentInsetAdjustmentBehavior="automatic"
           ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -109,17 +112,6 @@ export default function AssistantListScreen() {
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
-          }
-          ListHeaderComponent={
-            <PageSection
-              title={`${chats.length} ${chats.length === 1 ? "conversation" : "conversations"}`}
-              description="Open a thread to continue where you left off."
-              contentStyle={styles.summaryContent}
-            >
-              <Text variant="muted" selectable>
-                Long press delete on a card whenever you want to clear an old thread.
-              </Text>
-            </PageSection>
           }
           renderItem={({ item }) => (
             <ChatRow
@@ -153,6 +145,17 @@ function ChatRow({
   return (
     <PageSection contentStyle={styles.rowContent}>
       <View style={styles.row}>
+        <View
+          style={[
+            styles.rowIcon,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <Ionicons name="sparkles-outline" size={16} color={palette.text} />
+        </View>
         <Link
           href={{ pathname: "/(tabs)/assistant/[chatId]", params: { chatId: chat.id } }}
           asChild
@@ -180,16 +183,14 @@ function ChatRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  pagePadding: {
+  topPadding: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-  },
-  toolbarSection: {
-    gap: Spacing.md,
   },
   statePadding: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   stateFill: {
     flex: 1,
@@ -197,18 +198,24 @@ const styles = StyleSheet.create({
   stateCard: { minHeight: 220 },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  summaryContent: {
-    gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
   rowContent: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
+  },
+  rowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
   rowTitle: {
     fontSize: FontSize.md,

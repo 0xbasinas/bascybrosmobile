@@ -15,6 +15,7 @@ import { AppTextInput } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
 import { Segmented } from "@/components/ui/segmented"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
@@ -77,11 +78,16 @@ export default function TasksListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.pagePadding}>
-        <PageSection
-          title="Task board"
+      <View style={styles.topPadding}>
+        <TabHero
+          icon="checkmark-done-outline"
+          eyebrow="Execution"
           description="Search your tasks, change views, and keep active work moving."
-          contentStyle={styles.toolbarSection}
+          stats={[
+            { label: "Open", value: String(grouped.open.length) },
+            { label: "In progress", value: String(grouped.in_progress.length) },
+            { label: "Done", value: String(grouped.done.length) },
+          ]}
         >
           <View style={styles.toolbar}>
             <AppTextInput
@@ -94,14 +100,14 @@ export default function TasksListScreen() {
               style={styles.flex}
             />
             <AppButton
-              title="New"
+              title="New task"
               size="md"
               onPress={() => router.push("/(tabs)/tasks/new")}
             />
           </View>
 
           <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
-        </PageSection>
+        </TabHero>
       </View>
 
       {query.isLoading ? (
@@ -109,13 +115,13 @@ export default function TasksListScreen() {
           <LoadingState label="Loading tasks..." style={styles.stateFill} />
         </View>
       ) : query.error ? (
-        <View style={styles.pagePadding}>
+        <View style={styles.topPadding}>
           <PageSection contentStyle={styles.stateCard}>
             <EmptyState title="Couldn't load tasks" description={query.error.message} />
           </PageSection>
         </View>
       ) : tasks.length === 0 ? (
-        <View style={styles.pagePadding}>
+        <View style={styles.topPadding}>
           <PageSection contentStyle={styles.stateCard}>
             <EmptyState title="No tasks" description="Tap New to create your first task." />
           </PageSection>
@@ -124,6 +130,7 @@ export default function TasksListScreen() {
         <FlatList
           data={tasks}
           keyExtractor={(item) => item.id}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           refreshControl={
@@ -132,21 +139,6 @@ export default function TasksListScreen() {
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
-          }
-          ListHeaderComponent={
-            <PageSection
-              title={filter === "all" ? "Overview" : `Filtered: ${FILTER_OPTIONS.find((option) => option.value === filter)?.label ?? "Tasks"}`}
-              description={
-                filter === "all"
-                  ? `${grouped.open.length} open, ${grouped.in_progress.length} in progress, ${grouped.done.length} done.`
-                  : `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} in this view.`
-              }
-              contentStyle={styles.summaryContent}
-            >
-              <Text variant="muted" selectable>
-                Tap a task to open it, or use the status circle to cycle it forward.
-              </Text>
-            </PageSection>
           }
           renderItem={({ item }) => (
             <TaskRow
@@ -229,12 +221,10 @@ function TaskRow({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: Spacing.sm },
-  pagePadding: {
+  container: { flex: 1 },
+  topPadding: {
     paddingHorizontal: Spacing.lg,
-  },
-  toolbarSection: {
-    gap: Spacing.md,
+    paddingTop: Spacing.md,
   },
   toolbar: {
     flexDirection: "row",
@@ -242,18 +232,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   flex: { flex: 1 },
-  state: { flex: 1, paddingHorizontal: Spacing.lg },
+  state: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
   stateFill: { flex: 1 },
   stateCard: { minHeight: 220 },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  summaryContent: {
-    gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
   rowContent: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   row: {
     flexDirection: "row",
@@ -268,8 +260,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusButton: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",

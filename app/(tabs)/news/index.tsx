@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { FontSize, Spacing, usePalette } from "@/lib/theme"
@@ -41,9 +42,22 @@ export default function NewsScreen() {
   })
 
   const items = query.data?.items ?? []
+  const sourceCount = new Set(items.map((item) => item.source)).size
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <View style={styles.topPadding}>
+        <TabHero
+          icon="newspaper-outline"
+          eyebrow="Signal feed"
+          description="A quick feed of the latest stories worth checking from your phone."
+          stats={[
+            { label: "Articles", value: String(items.length) },
+            { label: "Sources", value: String(sourceCount) },
+          ]}
+        />
+      </View>
+
       {query.isLoading ? (
         <View style={styles.pagePadding}>
           <LoadingState label="Loading news..." style={styles.stateFill} />
@@ -64,6 +78,7 @@ export default function NewsScreen() {
         <FlatList
           data={items}
           keyExtractor={(item, index) => `${item.link}-${index}`}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           refreshControl={
@@ -72,17 +87,6 @@ export default function NewsScreen() {
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
-          }
-          ListHeaderComponent={
-            <PageSection
-              title="Daily brief"
-              description="A quick feed of the latest articles worth checking on mobile."
-              contentStyle={styles.summaryContent}
-            >
-              <Text variant="muted" selectable>
-                Open any card to launch the original source.
-              </Text>
-            </PageSection>
           }
           renderItem={({ item }) => <NewsRow item={item} />}
         />
@@ -127,9 +131,14 @@ function NewsRow({ item }: { item: NewsItem }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topPadding: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
   pagePadding: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   stateFill: {
     flex: 1,
@@ -137,13 +146,11 @@ const styles = StyleSheet.create({
   stateCard: { minHeight: 220 },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  summaryContent: {
-    gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
   rowContent: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   row: {
     flexDirection: "row",

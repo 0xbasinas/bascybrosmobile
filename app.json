@@ -73,7 +73,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#000000"
         }
-      ]
+      ],
+      "./plugins/with-android-share-task-root.js"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,5 +1,4 @@
-import { ClerkProvider } from "@clerk/expo"
-import { useAuth } from "@clerk/expo"
+import { ClerkProvider, useAuth } from "@clerk/expo"
 import { tokenCache } from "@clerk/expo/token-cache"
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native"
 import { Stack, usePathname, useRouter } from "expo-router"
@@ -29,8 +28,9 @@ export default function RootLayout() {
 
   return (
     // ShareIntentProvider wraps everything so all screens share one intent state.
-    // android:launchMode="singleTask" (in app.json) prevents a second activity
-    // from spawning when a share arrives, so ClerkProvider is never duplicated.
+    // Android: singleTask + with-android-share-task-root (see plugins/) relaunch
+    // when the host embeds MainActivity in its task (Chrome/Google share), which
+    // otherwise spawned a second React tree and duplicate ClerkProvider errors.
     <ShareIntentProvider>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
         <ReactQueryProvider>

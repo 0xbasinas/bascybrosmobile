@@ -29,6 +29,11 @@ export default function RootLayout() {
     }
   }, [])
 
+  useEffect(() => {
+    if (process.env.EXPO_OS !== "web" || typeof document === "undefined") return
+    document.documentElement.classList.toggle("dark", colorScheme === "dark")
+  }, [colorScheme])
+
   return (
     // ShareIntentProvider wraps everything so all screens share one intent state.
     // Android: singleTask + with-android-share-task-root (see plugins/) relaunch
@@ -54,7 +59,7 @@ export default function RootLayout() {
                 options={{ headerShown: false, presentation: "modal" }}
               />
             </Stack>
-            <StatusBar style="auto" />
+            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             <PortalHost />
           </ThemeProvider>
         </ReactQueryProvider>

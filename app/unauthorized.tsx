@@ -1,13 +1,12 @@
 import { useRouter } from "expo-router"
 import { useClerk } from "@clerk/expo"
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet } from "react-native"
 
 import { AppButton } from "@/components/ui/button"
-import { Screen } from "@/components/ui/screen"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { PageScrollView, PageSection } from "@/components/ui/page"
+import { Spacing } from "@/lib/theme"
 
 export default function UnauthorizedScreen() {
-  const palette = usePalette()
   const router = useRouter()
   const { signOut } = useClerk()
 
@@ -20,33 +19,23 @@ export default function UnauthorizedScreen() {
   }
 
   return (
-    <Screen>
-      <View style={styles.container}>
-        <Text style={[styles.title, { color: palette.text }]}>Access restricted</Text>
-        <Text style={[styles.message, { color: palette.textMuted }]}>
-          This account is signed in but its email isn&apos;t on the BascyBros allowlist. Ask
-          an admin to add it, then sign in again.
-        </Text>
+    <PageScrollView contentContainerStyle={styles.content}>
+      <PageSection
+        title="Access restricted"
+        description="This account is signed in but its email is not on the BascyBros allowlist yet. Ask an admin to add it, then sign in again."
+        contentStyle={styles.sectionContent}
+      >
         <AppButton title="Sign out" variant="outline" fullWidth onPress={handleSignOut} />
-      </View>
-    </Screen>
+      </PageSection>
+    </PageScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  content: {
     justifyContent: "center",
+  },
+  sectionContent: {
     gap: Spacing.lg,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  message: {
-    fontSize: FontSize.md,
-    textAlign: "center",
-    lineHeight: 22,
   },
 })

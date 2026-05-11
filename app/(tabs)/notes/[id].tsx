@@ -1,28 +1,28 @@
 import { useEffect, useState } from "react"
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Alert, StyleSheet } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { Ionicons } from "@expo/vector-icons"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { MarkdownView } from "@/components/markdown"
+import { EmptyState } from "@/components/ui/empty"
+import { LoadingScreen, PageField, PageScrollView, PageSection } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { Spacing } from "@/lib/theme"
 import type { Note } from "@/lib/types"
 
+function formatDate(unix: number) {
+  const date = new Date(unix * 1000)
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
 export default function NoteDetailScreen() {
-  const palette = usePalette()
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()
   const id = String(params.id ?? "")
@@ -88,57 +88,32 @@ export default function NoteDetailScreen() {
     save.mutate()
   }
 
-  if (query.isLoading || !note) {
+  if (query.isLoading) {
+    return <LoadingScreen label="Loading note..." />
+  }
+
+  if (query.error || !note) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: palette.background,
-        }}
-      >
-        {query.error ? (
-          <Text style={{ color: palette.danger, padding: Spacing.lg }}>
-            {query.error.message}
-          </Text>
-        ) : (
-          <ActivityIndicator color={palette.text} />
-        )}
-      </View>
+      <PageScrollView>
+        <PageSection contentStyle={styles.errorCard}>
+          <EmptyState
+            title="Couldn't load note"
+            description={query.error?.message ?? "This note is no longer available."}
+          />
+        </PageSection>
+      </PageScrollView>
     )
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        {editing ? (
-          <>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: palette.text }]}>Title</Text>
-              <AppTextInput value={title} onChangeText={setTitle} maxLength={200} />
-            </View>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: palette.text }]}>Tags</Text>
-              <AppTextInput value={tags} onChangeText={setTags} autoCapitalize="none" />
-            </View>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: palette.text }]}>Content (Markdown)</Text>
-              <AppTextInput
-                multiline
-                value={content}
-                onChangeText={setContent}
-                style={{ minHeight: 320 }}
-              />
-            </View>
-
-            <View style={styles.actionsRow}>
+    <PageScrollView keyboardAvoiding>
+      {editing ? (
+        <PageSection
+          title="Edit note"
+          description="Update the title, tags, or markdown content."
+          contentStyle={styles.sectionContent}
+          footer={
+            <>
               <AppButton
                 title="Cancel"
                 variant="outline"
@@ -148,74 +123,75 @@ export default function NoteDetailScreen() {
                   setTags(note.tags)
                   setContent(note.contentMarkdown)
                 }}
-                style={{ flex: 1 }}
+                style={styles.flex}
               />
               <AppButton
                 title="Save"
                 onPress={handleSave}
                 loading={save.isPending}
-                style={{ flex: 1 }}
+                style={styles.flex}
               />
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.title, { color: palette.text }]}>{note.title}</Text>
-
-            {note.tags ? (
-              <Text style={{ color: palette.textMuted, fontSize: FontSize.sm }}>
-                {note.tags}
-              </Text>
-            ) : null}
-
-            <View
-              style={{
-                borderRadius: Radius.lg,
-                borderWidth: StyleSheet.hairlineWidth,
-                borderColor: palette.border,
-                padding: Spacing.md,
-                backgroundColor: palette.surface,
-              }}
-            >
-              <MarkdownView markdown={note.contentMarkdown} />
-            </View>
-
-            <View style={styles.actionsRow}>
-              <Pressable
+            </>
+          }
+        >
+          <PageField label="Title" description="Keep the note name concise and recognizable.">
+            <AppTextInput value={title} onChangeText={setTitle} maxLength={200} />
+          </PageField>
+          <PageField label="Tags" description="Comma-separated tags power note filtering.">
+            <AppTextInput value={tags} onChangeText={setTags} autoCapitalize="none" />
+          </PageField>
+          <PageField label="Content" description="Markdown changes save directly back to this note.">
+            <AppTextInput
+              multiline
+              value={content}
+              onChangeText={setContent}
+              style={styles.editor}
+            />
+          </PageField>
+        </PageSection>
+      ) : (
+        <PageSection
+          title={note.title}
+          description={note.tags ? `Tags: ${note.tags}` : "No tags added yet."}
+          contentStyle={styles.sectionContent}
+          footer={
+            <>
+              <AppButton
+                title="Delete note"
+                variant="danger"
                 onPress={handleDelete}
-                style={({ pressed }) => [
-                  styles.iconAction,
-                  {
-                    borderColor: palette.border,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Ionicons name="trash-outline" size={20} color={palette.danger} />
-              </Pressable>
+                loading={remove.isPending}
+                style={styles.flex}
+              />
               <AppButton
                 title="Edit note"
-                fullWidth
-                style={{ flex: 1 }}
                 onPress={() => setEditing(true)}
+                style={styles.flex}
               />
-            </View>
-          </>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+            </>
+          }
+        >
+          <Text variant="muted" selectable>
+            Updated {formatDate(note.updatedAt)}
+          </Text>
+          <MarkdownView markdown={note.contentMarkdown} />
+        </PageSection>
+      )}
+    </PageScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { padding: Spacing.lg, gap: Spacing.lg },
-  title: { fontSize: FontSize.title, fontWeight: "700" },
-  field: { gap: Spacing.sm },
-  label: { fontSize: FontSize.sm, fontWeight: "500" },
-  actionsRow: { flexDirection: "row", gap: Spacing.sm, alignItems: "center" },
-  iconAction: {
-    padding: 12,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+  errorCard: {
+    minHeight: 220,
+  },
+  sectionContent: {
+    gap: Spacing.lg,
+  },
+  editor: {
+    minHeight: 320,
+  },
+  flex: {
+    flex: 1,
   },
 })

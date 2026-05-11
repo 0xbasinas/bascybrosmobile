@@ -1,18 +1,18 @@
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useQuery } from "@tanstack/react-query"
 
 import { EmptyState } from "@/components/ui/empty"
+import { LoadingState, PageSection } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { NewsItem } from "@/lib/types"
 import { safeOpenUrl } from "@/lib/safe-open-url"
 
@@ -45,16 +45,21 @@ export default function NewsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
       {query.isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={palette.text} />
+        <View style={styles.pagePadding}>
+          <LoadingState label="Loading news..." style={styles.stateFill} />
         </View>
       ) : query.error ? (
-        <EmptyState title="Couldn't load news" description={query.error.message} />
+        <View style={styles.pagePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState title="Couldn't load news" description={query.error.message} />
+          </PageSection>
+        </View>
       ) : items.length === 0 ? (
-        <EmptyState
-          title="No articles"
-          description="Pull down to refresh."
-        />
+        <View style={styles.pagePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState title="No articles" description="Pull down to refresh." />
+          </PageSection>
+        </View>
       ) : (
         <FlatList
           data={items}
@@ -68,6 +73,17 @@ export default function NewsScreen() {
               tintColor={palette.text}
             />
           }
+          ListHeaderComponent={
+            <PageSection
+              title="Daily brief"
+              description="A quick feed of the latest articles worth checking on mobile."
+              contentStyle={styles.summaryContent}
+            >
+              <Text variant="muted" selectable>
+                Open any card to launch the original source.
+              </Text>
+            </PageSection>
+          }
           renderItem={({ item }) => <NewsRow item={item} />}
         />
       )}
@@ -76,58 +92,74 @@ export default function NewsScreen() {
 }
 
 function NewsRow({ item }: { item: NewsItem }) {
-  const palette = usePalette()
   const date = formatDate(item.pubDate)
+  const palette = usePalette()
 
   return (
     <Pressable
       onPress={() => {
         void safeOpenUrl(item.link)
       }}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
+      style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
     >
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text style={{ color: palette.textMuted, fontSize: FontSize.xs, fontWeight: "600" }}>
-          {item.source.toUpperCase()}
-          {date ? ` · ${date}` : ""}
-        </Text>
-        <Text
-          style={{ color: palette.text, fontSize: FontSize.md, fontWeight: "600" }}
-          numberOfLines={3}
-        >
-          {item.title}
-        </Text>
-        {item.summary ? (
-          <Text
-            style={{ color: palette.textMuted, fontSize: FontSize.sm, marginTop: 2 }}
-            numberOfLines={3}
-          >
-            {item.summary}
-          </Text>
-        ) : null}
-      </View>
-      <Ionicons name="open-outline" size={18} color={palette.textMuted} />
+      <PageSection contentStyle={styles.rowContent}>
+        <View style={styles.row}>
+          <View style={styles.rowText}>
+            <Text style={[styles.rowEyebrow, { color: palette.textMuted }]} selectable>
+              {item.source.toUpperCase()}
+              {date ? ` · ${date}` : ""}
+            </Text>
+            <Text style={styles.rowTitle} numberOfLines={3}>
+              {item.title}
+            </Text>
+            {item.summary ? (
+              <Text variant="muted" numberOfLines={3} selectable>
+                {item.summary}
+              </Text>
+            ) : null}
+          </View>
+          <Ionicons name="open-outline" size={18} color={palette.textMuted} />
+        </View>
+      </PageSection>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  listContent: { padding: Spacing.lg },
+  pagePadding: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+  stateFill: {
+    flex: 1,
+  },
+  stateCard: { minHeight: 220 },
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  summaryContent: {
+    gap: Spacing.xs,
+  },
+  rowContent: {
+    padding: Spacing.md,
+  },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  rowText: {
+    flex: 1,
+    gap: 4,
+  },
+  rowEyebrow: {
+    fontSize: FontSize.xs,
+    fontWeight: "600",
+  },
+  rowTitle: {
+    fontSize: FontSize.md,
+    fontWeight: "600",
   },
 })

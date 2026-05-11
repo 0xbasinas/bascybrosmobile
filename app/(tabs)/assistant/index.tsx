@@ -1,11 +1,9 @@
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { Link, useRouter } from "expo-router"
@@ -14,8 +12,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty"
+import { LoadingState, PageSection } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat } from "@/lib/types"
 
 function formatDate(unix: number) {
@@ -63,26 +63,40 @@ export default function AssistantListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.toolbar}>
-        <AppButton
-          title="New chat"
-          loading={create.isPending}
-          onPress={() => create.mutate()}
-          style={{ flex: 1 }}
-        />
+      <View style={styles.pagePadding}>
+        <PageSection
+          title="Workspace assistant"
+          description="Keep ongoing chats about notes, tasks, and your broader workspace."
+          contentStyle={styles.toolbarSection}
+        >
+          <AppButton
+            title="New chat"
+            loading={create.isPending}
+            onPress={() => create.mutate()}
+            fullWidth
+          />
+        </PageSection>
       </View>
 
       {query.isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={palette.text} />
+        <View style={styles.statePadding}>
+          <LoadingState label="Loading chats..." style={styles.stateFill} />
         </View>
       ) : query.error ? (
-        <EmptyState title="Couldn't load chats" description={query.error.message} />
+        <View style={styles.statePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState title="Couldn't load chats" description={query.error.message} />
+          </PageSection>
+        </View>
       ) : chats.length === 0 ? (
-        <EmptyState
-          title="No chats yet"
-          description="Tap New chat to ask the assistant about your workspace."
-        />
+        <View style={styles.statePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState
+              title="No chats yet"
+              description="Tap New chat to ask the assistant about your workspace."
+            />
+          </PageSection>
+        </View>
       ) : (
         <FlatList
           data={chats}
@@ -95,6 +109,17 @@ export default function AssistantListScreen() {
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
+          }
+          ListHeaderComponent={
+            <PageSection
+              title={`${chats.length} ${chats.length === 1 ? "conversation" : "conversations"}`}
+              description="Open a thread to continue where you left off."
+              contentStyle={styles.summaryContent}
+            >
+              <Text variant="muted" selectable>
+                Long press delete on a card whenever you want to clear an old thread.
+              </Text>
+            </PageSection>
           }
           renderItem={({ item }) => (
             <ChatRow
@@ -126,59 +151,70 @@ function ChatRow({
 }) {
   const palette = usePalette()
   return (
-    <View
-      style={[
-        styles.row,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <Link
-        href={{ pathname: "/(tabs)/assistant/[chatId]", params: { chatId: chat.id } }}
-        asChild
-      >
-        <Pressable style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.85 : 1 }]}>
-          <Text
-            style={{ color: palette.text, fontSize: FontSize.md, fontWeight: "600" }}
-            numberOfLines={1}
-          >
-            {chat.title}
-          </Text>
-          <Text style={{ color: palette.textMuted, fontSize: FontSize.xs, marginTop: 4 }}>
-            Updated {formatDate(chat.updatedAt)}
-          </Text>
+    <PageSection contentStyle={styles.rowContent}>
+      <View style={styles.row}>
+        <Link
+          href={{ pathname: "/(tabs)/assistant/[chatId]", params: { chatId: chat.id } }}
+          asChild
+        >
+          <Pressable style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.92 : 1 }]}>
+            <Text style={styles.rowTitle} numberOfLines={1}>
+              {chat.title}
+            </Text>
+            <Text variant="muted" selectable style={styles.rowMeta}>
+              Updated {formatDate(chat.updatedAt)}
+            </Text>
+          </Pressable>
+        </Link>
+        <Pressable
+          hitSlop={6}
+          onPress={onDelete}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 6 })}
+        >
+          <Ionicons name="trash-outline" size={18} color={palette.danger} />
         </Pressable>
-      </Link>
-      <Pressable
-        hitSlop={6}
-        onPress={onDelete}
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 6 })}
-      >
-        <Ionicons name="trash-outline" size={18} color={palette.danger} />
-      </Pressable>
-    </View>
+      </View>
+    </PageSection>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  toolbar: {
-    flexDirection: "row",
+  pagePadding: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.sm,
   },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  listContent: { padding: Spacing.lg },
+  toolbarSection: {
+    gap: Spacing.md,
+  },
+  statePadding: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+  stateFill: {
+    flex: 1,
+  },
+  stateCard: { minHeight: 220 },
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  summaryContent: {
+    gap: Spacing.xs,
+  },
+  rowContent: {
+    padding: Spacing.md,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  rowTitle: {
+    fontSize: FontSize.md,
+    fontWeight: "600",
+  },
+  rowMeta: {
+    marginTop: 4,
   },
 })

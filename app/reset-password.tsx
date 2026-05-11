@@ -1,27 +1,15 @@
 import { useAuth } from "@clerk/expo"
 import { Redirect } from "expo-router"
-import { ActivityIndicator, ScrollView, View } from "react-native"
 
+import { AuthScreenShell } from "@/components/auth/auth-screen-shell"
 import { ResetPasswordForm } from "@/components/reset-password-form"
-import { usePalette } from "@/lib/theme"
+import { LoadingScreen } from "@/components/ui/page"
 
 export default function ResetPasswordScreen() {
   const { isLoaded, isSignedIn } = useAuth()
-  const palette = usePalette()
 
   if (!isLoaded) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: palette.background,
-        }}
-      >
-        <ActivityIndicator color={palette.text} />
-      </View>
-    )
+    return <LoadingScreen label="Loading reset flow..." />
   }
 
   if (isSignedIn) {
@@ -29,17 +17,8 @@ export default function ResetPasswordScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 24,
-        backgroundColor: palette.background,
-      }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <AuthScreenShell>
       <ResetPasswordForm />
-    </ScrollView>
+    </AuthScreenShell>
   )
 }

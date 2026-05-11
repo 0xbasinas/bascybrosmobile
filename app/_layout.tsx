@@ -1,15 +1,18 @@
 import { ClerkProvider, useAuth } from "@clerk/expo"
 import { tokenCache } from "@clerk/expo/token-cache"
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native"
+import { PortalHost } from "@rn-primitives/portal"
+import { ThemeProvider } from "@react-navigation/native"
 import { Stack, usePathname, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { useEffect } from "react"
 import { LogBox, useColorScheme } from "react-native"
 import "react-native-reanimated"
+import "../global.css"
 import { ShareIntentProvider, useShareIntentContext } from "expo-share-intent"
 
 import { ReactQueryProvider } from "@/lib/query"
 import { CLERK_PUBLISHABLE_KEY } from "@/lib/config"
+import { NAV_THEME } from "@/lib/theme"
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -34,13 +37,16 @@ export default function RootLayout() {
     <ShareIntentProvider>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
         <ReactQueryProvider>
-          <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
             <ShareIntentRedirector />
             <Stack>
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="sign-in" options={{ headerShown: false }} />
               <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+              <Stack.Screen name="verify-email" options={{ headerShown: false }} />
+              <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+              <Stack.Screen name="reset-password" options={{ headerShown: false }} />
               <Stack.Screen name="oauth-callback" options={{ headerShown: false }} />
               <Stack.Screen name="share-inbox" options={{ headerShown: false }} />
               <Stack.Screen
@@ -49,6 +55,7 @@ export default function RootLayout() {
               />
             </Stack>
             <StatusBar style="auto" />
+            <PortalHost />
           </ThemeProvider>
         </ReactQueryProvider>
       </ClerkProvider>

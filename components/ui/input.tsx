@@ -1,48 +1,39 @@
-import { forwardRef } from "react"
-import {
-  StyleSheet,
-  TextInput,
-  type TextInputProps,
-} from "react-native"
+import { cn } from '@/lib/utils';
+import * as React from 'react';
+import { Platform, TextInput } from 'react-native';
 
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
-
-export type AppTextInputProps = TextInputProps & {
-  multiline?: boolean
+function Input({ className, ...props }: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
+  return (
+    <TextInput
+      className={cn(
+        'dark:bg-input/30 border-input bg-background text-foreground flex h-10 w-full min-w-0 flex-row items-center rounded-md border px-3 py-1 text-base leading-5 shadow-sm shadow-black/5 sm:h-9',
+        props.editable === false &&
+        cn(
+          'opacity-50',
+          Platform.select({ web: 'disabled:pointer-events-none disabled:cursor-not-allowed' })
+        ),
+        Platform.select({
+          web: cn(
+            'placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground outline-none transition-[color,box-shadow] md:text-sm',
+            'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+            'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive'
+          ),
+          native: 'placeholder:text-muted-foreground/50',
+        }),
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
-export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
-  function AppTextInput({ style, multiline, ...rest }, ref) {
-    const palette = usePalette()
+export { Input };
 
-    return (
-      <TextInput
-        ref={ref}
-        placeholderTextColor={palette.textMuted}
-        multiline={multiline}
-        {...rest}
-        style={[
-          styles.input,
-          {
-            color: palette.text,
-            backgroundColor: palette.surface,
-            borderColor: palette.border,
-            minHeight: multiline ? 120 : 44,
-            textAlignVertical: multiline ? "top" : "center",
-          },
-          style,
-        ]}
-      />
-    )
-  }
-)
+export type AppTextInputProps = React.ComponentProps<typeof TextInput>;
 
-const styles = StyleSheet.create({
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-    fontSize: FontSize.md,
-  },
-})
+export const AppTextInput = React.forwardRef<TextInput, AppTextInputProps>(function AppTextInput(
+  props,
+  ref
+) {
+  return <Input ref={ref} {...props} />;
+});

@@ -1,11 +1,11 @@
-import { Redirect } from "expo-router"
 import { useAuth } from "@clerk/expo"
+import { Redirect } from "expo-router"
 import { ActivityIndicator, ScrollView, View } from "react-native"
 
-import { SignUpForm } from "@/components/sign-up-form"
+import { ForgotPasswordForm } from "@/components/forgot-password-form"
 import { usePalette } from "@/lib/theme"
 
-export default function SignUpScreen() {
+export default function ForgotPasswordScreen() {
   const { isLoaded, isSignedIn } = useAuth()
   const palette = usePalette()
 
@@ -39,7 +39,7 @@ export default function SignUpScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <SignUpForm />
+      <ForgotPasswordForm />
     </ScrollView>
   )
 }

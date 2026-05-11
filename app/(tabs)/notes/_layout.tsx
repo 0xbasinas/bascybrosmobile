@@ -1,6 +1,6 @@
 import { Stack } from "expo-router"
 
-import { SignOutButton } from "@/components/sign-out-button"
+import { UserMenu } from "@/components/user-menu"
 import { usePalette } from "@/lib/theme"
 
 export default function NotesStackLayout() {
@@ -19,7 +19,7 @@ export default function NotesStackLayout() {
         name="index"
         options={{
           title: "Notes",
-          headerRight: () => <SignOutButton />,
+          headerRight: () => <UserMenu />,
         }}
       />
       <Stack.Screen

@@ -40,6 +40,7 @@
       ]
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/main.png"
     },
@@ -74,7 +75,9 @@
           "backgroundColor": "#000000"
         }
       ],
-      "./plugins/with-android-share-task-root.js"
+      "./plugins/with-android-share-task-root.js",
+      "@clerk/expo",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

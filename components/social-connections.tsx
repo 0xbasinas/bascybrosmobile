@@ -41,7 +41,7 @@ export function SocialConnections() {
     return async () => {
       try {
         // Start the authentication process by calling `startSSOFlow()`
-        const { createdSessionId, setActive, signIn } = await startSSOFlow({
+        const { createdSessionId, setActive } = await startSSOFlow({
           strategy,
           // For web, defaults to current path
           // For native, you must pass a scheme, like AuthSession.makeRedirectUri({ scheme, path })
@@ -92,17 +92,17 @@ export function SocialConnections() {
   );
 }
 
-const useWarmUpBrowser = Platform.select({
-  web: () => { },
-  default: () => {
-    React.useEffect(() => {
-      // Preloads the browser for Android devices to reduce authentication load time
-      // See: https://docs.expo.dev/guides/authentication/#improving-user-experience
-      void WebBrowser.warmUpAsync();
-      return () => {
-        // Cleanup: closes browser when component unmounts
-        void WebBrowser.coolDownAsync();
-      };
-    }, []);
-  },
-});
+function useWarmUpBrowser() {
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
+
+    // Preload the browser on native devices to reduce authentication load time.
+    void WebBrowser.warmUpAsync();
+
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+}

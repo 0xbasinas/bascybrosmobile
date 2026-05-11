@@ -17,7 +17,10 @@ export default function SignUpScreen() {
   }
 
   return (
-    <AuthScreenShell>
+    <AuthScreenShell
+      title="Create your account"
+      description="Set up your BascyBros account and start organizing your work."
+    >
       <SignUpForm />
     </AuthScreenShell>
   )

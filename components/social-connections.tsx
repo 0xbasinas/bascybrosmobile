@@ -8,6 +8,7 @@ import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Image, Platform, View, type ImageSourcePropType } from 'react-native';
 import { AUTH_REDIRECT_URL } from '@/lib/auth-redirect';
+import { Text } from '@/components/ui/text';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -18,11 +19,13 @@ type SocialConnectionStrategy = Extract<
 
 const SOCIAL_CONNECTION_STRATEGIES: {
   type: SocialConnectionStrategy;
+  label: string;
   source: ImageSourcePropType;
   useTint?: boolean;
 }[] = [
     {
       type: 'oauth_google',
+      label: 'Continue with Google',
       source: { uri: 'https://img.clerk.com/static/google.png?width=160' },
       useTint: false,
     }
@@ -66,14 +69,13 @@ export function SocialConnections() {
   }
 
   return (
-    <View className="gap-2 sm:flex-row sm:gap-3">
+    <View className="gap-3">
       {SOCIAL_CONNECTION_STRATEGIES.map((strategy) => {
         return (
           <Button
             key={strategy.type}
             variant="outline"
-            size="sm"
-            className="sm:flex-1"
+            className="w-full justify-center"
             onPress={onSocialLoginPress(strategy.type)}>
             <Image
               className={cn('size-4', strategy.useTint && Platform.select({ web: 'dark:invert' }))}
@@ -82,6 +84,7 @@ export function SocialConnections() {
               })}
               source={strategy.source}
             />
+            <Text>{strategy.label}</Text>
           </Button>
         );
       })}

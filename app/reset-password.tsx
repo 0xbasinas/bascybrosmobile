@@ -17,7 +17,10 @@ export default function ResetPasswordScreen() {
   }
 
   return (
-    <AuthScreenShell>
+    <AuthScreenShell
+      title="Choose a new password"
+      description="Use the verification code from your email to secure your BascyBros account."
+    >
       <ResetPasswordForm />
     </AuthScreenShell>
   )

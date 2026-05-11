@@ -1,14 +1,8 @@
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
+import { APP_NAME } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { useSignIn } from '@clerk/expo';
 import { useRouter } from 'expo-router';
@@ -58,39 +52,43 @@ export function ForgotPasswordForm() {
   };
 
   return (
-    <View className="gap-6">
-      <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
-        <CardHeader>
-          <CardTitle className="text-center text-xl sm:text-left">Forgot password?</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Enter your email to reset your password
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-6">
-          <View className="gap-6">
-            <View className="gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                defaultValue={email}
-                placeholder="m@example.com"
-                keyboardType="email-address"
-                autoComplete="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                onSubmitEditing={onSubmit}
-                returnKeyType="send"
-              />
-              {error.email ? (
-                <Text className="text-sm font-medium text-destructive">{error.email}</Text>
-              ) : null}
-            </View>
-            <Button className={cn("w-full", fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
-              <Text>Reset your password</Text>
-            </Button>
-          </View>
-        </CardContent>
-      </Card>
+    <View className="gap-5">
+      <View className="gap-4">
+        <View className="gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            value={email}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoComplete="email"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            onSubmitEditing={onSubmit}
+            returnKeyType="send"
+          />
+          <Text className="text-xs leading-5 text-muted-foreground">
+            We&apos;ll send a reset code to the email linked to your {APP_NAME} account.
+          </Text>
+          {error.email ? (
+            <Text className="text-sm font-medium text-destructive">{error.email}</Text>
+          ) : null}
+        </View>
+        <Button className={cn('w-full', fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
+          <Text>Send reset code</Text>
+        </Button>
+      </View>
+      <View className="flex-row flex-wrap items-center justify-center gap-1.5">
+        <Text className="text-sm text-muted-foreground">Remembered your password?</Text>
+        <Button
+          variant="link"
+          className="h-auto rounded-none px-0 py-0"
+          onPress={() => {
+            router.replace('/sign-in' as never);
+          }}>
+          <Text className="text-sm">Back to sign in</Text>
+        </Button>
+      </View>
     </View>
   );
 }

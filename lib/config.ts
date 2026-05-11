@@ -10,6 +10,9 @@ function isLocalHttpUrl(value: string) {
   return value.startsWith("http://localhost") || value.startsWith("http://127.0.0.1")
 }
 
+export const APP_NAME = "BascyBros"
+export const APP_AUTH_TAGLINE = "Your security workspace for notes, tasks, and updates."
+
 const rawApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() ?? ""
 if (!rawApiUrl) {
   console.warn(

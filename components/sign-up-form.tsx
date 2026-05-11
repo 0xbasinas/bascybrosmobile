@@ -1,21 +1,15 @@
 import { SocialConnections } from '@/components/social-connections';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
+import { APP_NAME } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { useSignUp } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 export function SignUpForm() {
   const router = useRouter();
@@ -69,70 +63,65 @@ export function SignUpForm() {
   }
 
   return (
-    <View className="gap-6">
-      <Card className="border-border/0 sm:border-border shadow-none sm:shadow-sm sm:shadow-black/5">
-        <CardHeader>
-          <CardTitle className="text-center text-xl sm:text-left">Create your account</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Welcome! Please fill in the details to get started.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-6">
-          <View className="gap-6">
-            <View className="gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                placeholder="m@example.com"
-                keyboardType="email-address"
-                autoComplete="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                onSubmitEditing={onEmailSubmitEditing}
-                returnKeyType="next"
-                submitBehavior="submit"
-              />
-              {error.email ? (
-                <Text className="text-destructive text-sm font-medium">{error.email}</Text>
-              ) : null}
-            </View>
-            <View className="gap-1.5">
-              <View className="flex-row items-center">
-                <Label htmlFor="password">Password</Label>
-              </View>
-              <Input
-                ref={passwordInputRef}
-                id="password"
-                secureTextEntry
-                onChangeText={setPassword}
-                returnKeyType="send"
-                onSubmitEditing={onSubmit}
-              />
-              {error.password ? (
-                <Text className="text-destructive text-sm font-medium">{error.password}</Text>
-              ) : null}
-            </View>
-            <Button className={cn("w-full", fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
-              <Text>Continue</Text>
-            </Button>
-          </View>
-          <Text className="text-center text-sm">
-            Already have an account?{' '}
-            <Pressable
-              onPress={() => {
-                router.push('/sign-in' as never);
-              }}>
-              <Text className="text-sm underline underline-offset-4">Sign in</Text>
-            </Pressable>
+    <View className="gap-5">
+      <View className="gap-4">
+        <View className="gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            value={email}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoComplete="email"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            onSubmitEditing={onEmailSubmitEditing}
+            returnKeyType="next"
+            submitBehavior="submit"
+          />
+          {error.email ? (
+            <Text className="text-sm font-medium text-destructive">{error.email}</Text>
+          ) : null}
+        </View>
+        <View className="gap-1.5">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            ref={passwordInputRef}
+            id="password"
+            value={password}
+            secureTextEntry
+            onChangeText={setPassword}
+            returnKeyType="send"
+            onSubmitEditing={onSubmit}
+          />
+          <Text className="text-xs leading-5 text-muted-foreground">
+            Use a secure password for your {APP_NAME} account.
           </Text>
-          <View className="flex-row items-center">
-            <Separator className="flex-1" />
-            <Text className="text-muted-foreground px-4 text-sm">or</Text>
-            <Separator className="flex-1" />
-          </View>
-          <SocialConnections />
-        </CardContent>
-      </Card>
+          {error.password ? (
+            <Text className="text-sm font-medium text-destructive">{error.password}</Text>
+          ) : null}
+        </View>
+        <Button className={cn('w-full', fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
+          <Text>Create your {APP_NAME} account</Text>
+        </Button>
+      </View>
+      <View className="flex-row flex-wrap items-center justify-center gap-1.5">
+        <Text className="text-sm text-muted-foreground">Already have an account?</Text>
+        <Button
+          variant="link"
+          className="h-auto rounded-none px-0 py-0"
+          onPress={() => {
+            router.push('/sign-in' as never);
+          }}>
+          <Text className="text-sm">Sign in</Text>
+        </Button>
+      </View>
+      <View className="flex-row items-center">
+        <Separator className="flex-1" />
+        <Text className="px-4 text-sm text-muted-foreground">or continue with</Text>
+        <Separator className="flex-1" />
+      </View>
+      <SocialConnections />
     </View>
   );
 }

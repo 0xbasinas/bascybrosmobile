@@ -1,30 +1,28 @@
 import { useState } from "react"
 import {
-  ActivityIndicator,
   Alert,
-  Dimensions,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
+  useWindowDimensions,
   View,
 } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty"
+import { LoadingState, PageSection } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { useUploadImage, type PickedImage } from "@/lib/hooks/useUploadImage"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { UploadedFile } from "@/lib/types"
 import { safeOpenUrl } from "@/lib/safe-open-url"
 
 const COLUMNS = 2
-const SCREEN_W = Dimensions.get("window").width
-const TILE_W = (SCREEN_W - Spacing.lg * 2 - Spacing.sm * (COLUMNS - 1)) / COLUMNS
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -37,8 +35,10 @@ export default function UploadsScreen() {
   const { requestJson } = useApi()
   const { upload, pickFromCamera, pickFromLibrary } = useUploadImage()
   const queryClient = useQueryClient()
+  const { width } = useWindowDimensions()
 
   const [busy, setBusy] = useState(false)
+  const tileWidth = (width - Spacing.lg * 2 - Spacing.sm * (COLUMNS - 1)) / COLUMNS
 
   const query = useQuery<{ ok: boolean; files: UploadedFile[] }, HttpError>({
     queryKey: ["uploads"],
@@ -90,33 +90,49 @@ export default function UploadsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.toolbar}>
-        <AppButton
-          title="Take photo"
-          onPress={handleCamera}
-          loading={busy}
-          style={{ flex: 1 }}
-        />
-        <AppButton
-          title="From library"
-          variant="secondary"
-          onPress={handleLibrary}
-          loading={busy}
-          style={{ flex: 1 }}
-        />
+      <View style={styles.topPadding}>
+        <PageSection
+          title="Uploads"
+          description="Capture screenshots or photos, then reopen them from your mobile workspace."
+          contentStyle={styles.toolbarSection}
+        >
+          <View style={styles.toolbar}>
+            <AppButton
+              title="Take photo"
+              onPress={handleCamera}
+              loading={busy}
+              style={styles.flex}
+            />
+            <AppButton
+              title="From library"
+              variant="secondary"
+              onPress={handleLibrary}
+              loading={busy}
+              style={styles.flex}
+            />
+          </View>
+        </PageSection>
       </View>
 
       {query.isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={palette.text} />
+        <View style={styles.statePadding}>
+          <LoadingState label="Loading uploads..." style={styles.stateFill} />
         </View>
       ) : query.error ? (
-        <EmptyState title="Couldn't load uploads" description={query.error.message} />
+        <View style={styles.statePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState title="Couldn't load uploads" description={query.error.message} />
+          </PageSection>
+        </View>
       ) : files.length === 0 ? (
-        <EmptyState
-          title="No uploads yet"
-          description="Tap a button above to add a screenshot or photo."
-        />
+        <View style={styles.statePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState
+              title="No uploads yet"
+              description="Tap a button above to add a screenshot or photo."
+            />
+          </PageSection>
+        </View>
       ) : (
         <FlatList
           data={files}
@@ -132,9 +148,21 @@ export default function UploadsScreen() {
               tintColor={palette.text}
             />
           }
+          ListHeaderComponent={
+            <PageSection
+              title={`${files.length} ${files.length === 1 ? "file" : "files"}`}
+              description="Tap a card to view the original asset."
+              contentStyle={styles.summaryContent}
+            >
+              <Text variant="muted" selectable>
+                Delete anything you no longer need directly from the grid.
+              </Text>
+            </PageSection>
+          }
           renderItem={({ item }) => (
             <Tile
               file={item}
+              tileWidth={tileWidth}
               onDelete={() =>
                 Alert.alert("Delete image?", item.filename, [
                   { text: "Cancel", style: "cancel" },
@@ -155,9 +183,11 @@ export default function UploadsScreen() {
 
 function Tile({
   file,
+  tileWidth,
   onDelete,
 }: {
   file: UploadedFile
+  tileWidth: number
   onDelete: () => void
 }) {
   const palette = usePalette()
@@ -166,60 +196,76 @@ function Tile({
       onPress={() => {
         void safeOpenUrl(file.url)
       }}
-      style={({ pressed }) => [
-        styles.tile,
-        {
-          width: TILE_W,
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
+      style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }, { width: tileWidth }]}
     >
-      <Image
-        source={{ uri: file.url }}
-        style={{ width: "100%", height: TILE_W, backgroundColor: palette.surfaceMuted }}
-        resizeMode="cover"
-      />
-      <View style={{ padding: Spacing.sm, gap: 4 }}>
-        <Text
-          style={{ color: palette.text, fontSize: FontSize.xs, fontWeight: "600" }}
-          numberOfLines={1}
-        >
-          {file.filename}
-        </Text>
-        <View style={styles.metaRow}>
-          <Text style={{ color: palette.textMuted, fontSize: FontSize.xs }}>
-            {formatSize(file.size)}
+      <PageSection contentStyle={styles.tileContent}>
+        <Image
+          source={{ uri: file.url }}
+          style={{ width: "100%", height: tileWidth, backgroundColor: palette.surfaceMuted }}
+          contentFit="cover"
+        />
+        <View style={styles.tileMeta}>
+          <Text style={styles.tileTitle} numberOfLines={1}>
+            {file.filename}
           </Text>
-          <Pressable
-            hitSlop={6}
-            onPress={onDelete}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <Ionicons name="trash-outline" size={16} color={palette.danger} />
-          </Pressable>
+          <View style={styles.metaRow}>
+            <Text variant="muted" selectable>
+              {formatSize(file.size)}
+            </Text>
+            <Pressable
+              hitSlop={6}
+              onPress={onDelete}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Ionicons name="trash-outline" size={16} color={palette.danger} />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </PageSection>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  toolbar: {
-    flexDirection: "row",
+  topPadding: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+  },
+  toolbarSection: {
+    gap: Spacing.md,
+  },
+  toolbar: {
+    flexDirection: "row",
     gap: Spacing.sm,
   },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  listContent: { padding: Spacing.lg },
-  tile: {
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: "hidden",
+  flex: { flex: 1 },
+  statePadding: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+  stateFill: {
+    flex: 1,
+  },
+  stateCard: { minHeight: 220 },
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  summaryContent: {
+    gap: Spacing.xs,
+  },
+  tileContent: {
+    gap: 0,
+    padding: 0,
+  },
+  tileMeta: {
+    padding: Spacing.sm,
+    gap: 4,
+  },
+  tileTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: "600",
   },
   metaRow: {
     flexDirection: "row",

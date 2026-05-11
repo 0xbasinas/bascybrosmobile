@@ -3,21 +3,14 @@ import { useAuth } from "@clerk/expo"
 import { Redirect, useRouter } from "expo-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useShareIntentContext } from "expo-share-intent"
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Alert, StyleSheet } from "react-native"
 
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
+import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { HttpError, useApi } from "@/lib/api"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { Spacing } from "@/lib/theme"
 
 function extractFirstHttpUrl(value: string): string | null {
   const match = value.match(/https?:\/\/[^\s]+/i)
@@ -94,8 +87,6 @@ function parseSharePayload(intent: {
 }
 
 export default function ShareInboxScreen() {
-  const palette = usePalette()
-  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { requestJson } = useApi()
   const { isLoaded, isSignedIn } = useAuth()
@@ -144,113 +135,100 @@ export default function ShareInboxScreen() {
   if (!isSignedIn) return <Redirect href="/sign-in" />
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            paddingTop: Math.max(insets.top, Spacing.md) + Spacing.sm,
-            paddingBottom: Math.max(insets.bottom, Spacing.lg) + Spacing.xl,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
+    <PageScrollView keyboardAvoiding>
+      <PageSection
+        title="Shared content ready"
+        description={
+          hasShareIntent
+            ? "Review the captured link or text before saving it as a note."
+            : "There is no active share payload right now."
+        }
+        contentStyle={styles.bannerContent}
       >
-        <View style={[styles.banner, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-          <Text style={[styles.bannerTitle, { color: palette.text }]}>Shared content ready</Text>
-          <Text style={[styles.bannerText, { color: palette.textMuted }]}>
-            {hasShareIntent ? "Only the shared URL is saved." : "No active shared content."}
+        <Text variant="muted" selectable>
+          Only the shared URL or text is stored. Edit the title, tags, and markdown below before saving.
+        </Text>
+        {error ? (
+          <Text selectable style={styles.errorText}>
+            {error}
           </Text>
-          {error ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}
-        </View>
+        ) : null}
+      </PageSection>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Title</Text>
+      <PageSection
+        title="Save to notes"
+        description="Turn the shared content into a searchable note."
+        contentStyle={styles.formContent}
+        footer={
+          <>
+            <AppButton
+              title="Save as note"
+              size="lg"
+              fullWidth
+              loading={create.isPending}
+              onPress={handleSave}
+            />
+            <AppButton
+              title="Clear shared content"
+              variant="outline"
+              size="md"
+              fullWidth
+              onPress={() => {
+                resetShareIntent()
+                router.replace("/(tabs)/notes")
+              }}
+            />
+          </>
+        }
+        footerStyle={styles.footer}
+      >
+        <PageField label="Title" description="Use something recognizable in your note list.">
           <AppTextInput
             placeholder="Note title"
             value={title}
             onChangeText={setTitle}
             maxLength={200}
           />
-        </View>
+        </PageField>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Tags (comma separated)</Text>
+        <PageField label="Tags" description="Comma-separated tags help group imported content.">
           <AppTextInput
             placeholder="e.g. shared, web"
             value={tags}
             onChangeText={setTags}
             autoCapitalize="none"
           />
-        </View>
+        </PageField>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Content (Markdown)</Text>
+        <PageField label="Content" description="Shared text or the captured link will appear here.">
           <AppTextInput
             multiline
             placeholder="Shared text or link will appear here..."
             value={content}
             onChangeText={setContent}
-            style={{ minHeight: 260 }}
+            style={styles.editor}
           />
-        </View>
-
-        <View style={styles.actions}>
-          <AppButton
-            title="Save as note"
-            size="lg"
-            fullWidth
-            loading={create.isPending}
-            onPress={handleSave}
-          />
-          <AppButton
-            title="Clear shared content"
-            variant="outline"
-            size="md"
-            fullWidth
-            onPress={() => {
-              resetShareIntent()
-              router.replace("/(tabs)/notes")
-            }}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </PageField>
+      </PageSection>
+    </PageScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: Spacing.lg,
+  bannerContent: {
     gap: Spacing.lg,
   },
-  banner: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    gap: Spacing.xs,
+  errorText: {
+    color: "#dc2626",
   },
-  bannerTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: "700",
+  formContent: {
+    gap: Spacing.lg,
   },
-  bannerText: {
-    fontSize: FontSize.sm,
-  },
-  error: {
-    marginTop: Spacing.xs,
-    fontSize: FontSize.xs,
-  },
-  field: {
+  footer: {
+    flexDirection: "column",
     gap: Spacing.sm,
   },
-  label: {
-    fontSize: FontSize.sm,
-    fontWeight: "500",
-  },
-  actions: {
-    gap: Spacing.sm,
+  editor: {
+    minHeight: 260,
   },
 })

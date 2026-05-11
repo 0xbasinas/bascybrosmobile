@@ -1,26 +1,13 @@
 import { useAuth } from "@clerk/expo"
 import { Redirect } from "expo-router"
-import { ActivityIndicator, View } from "react-native"
 
-import { usePalette } from "@/lib/theme"
+import { LoadingScreen } from "@/components/ui/page"
 
 export default function OAuthCallbackScreen() {
   const { isLoaded, isSignedIn } = useAuth()
-  const palette = usePalette()
 
   if (!isLoaded) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: palette.background,
-        }}
-      >
-        <ActivityIndicator color={palette.text} />
-      </View>
-    )
+    return <LoadingScreen label="Finishing sign in..." />
   }
 
   if (isSignedIn) {

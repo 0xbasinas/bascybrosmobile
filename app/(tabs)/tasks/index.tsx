@@ -1,11 +1,9 @@
 import { useMemo, useState } from "react"
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { Link, useRouter } from "expo-router"
@@ -15,7 +13,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty"
+import { LoadingState, PageSection } from "@/components/ui/page"
 import { Segmented } from "@/components/ui/segmented"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 import {
@@ -77,37 +77,49 @@ export default function TasksListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.toolbar}>
-        <AppTextInput
-          placeholder="Search tasks..."
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        <AppButton
-          title="New"
-          size="md"
-          onPress={() => router.push("/(tabs)/tasks/new")}
-        />
-      </View>
+      <View style={styles.pagePadding}>
+        <PageSection
+          title="Task board"
+          description="Search your tasks, change views, and keep active work moving."
+          contentStyle={styles.toolbarSection}
+        >
+          <View style={styles.toolbar}>
+            <AppTextInput
+              placeholder="Search tasks..."
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={styles.flex}
+            />
+            <AppButton
+              title="New"
+              size="md"
+              onPress={() => router.push("/(tabs)/tasks/new")}
+            />
+          </View>
 
-      <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm }}>
-        <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
+          <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
+        </PageSection>
       </View>
 
       {query.isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={palette.text} />
+        <View style={styles.state}>
+          <LoadingState label="Loading tasks..." style={styles.stateFill} />
         </View>
       ) : query.error ? (
-        <EmptyState title="Couldn't load tasks" description={query.error.message} />
+        <View style={styles.pagePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState title="Couldn't load tasks" description={query.error.message} />
+          </PageSection>
+        </View>
       ) : tasks.length === 0 ? (
-        <EmptyState
-          title="No tasks"
-          description="Tap New to create your first task."
-        />
+        <View style={styles.pagePadding}>
+          <PageSection contentStyle={styles.stateCard}>
+            <EmptyState title="No tasks" description="Tap New to create your first task." />
+          </PageSection>
+        </View>
       ) : (
         <FlatList
           data={tasks}
@@ -122,14 +134,19 @@ export default function TasksListScreen() {
             />
           }
           ListHeaderComponent={
-            filter === "all" ? (
-              <View style={{ paddingBottom: Spacing.md }}>
-                <Text style={{ color: palette.textMuted, fontSize: FontSize.xs }}>
-                  {grouped.open.length} open · {grouped.in_progress.length} in progress ·{" "}
-                  {grouped.done.length} done
-                </Text>
-              </View>
-            ) : null
+            <PageSection
+              title={filter === "all" ? "Overview" : `Filtered: ${FILTER_OPTIONS.find((option) => option.value === filter)?.label ?? "Tasks"}`}
+              description={
+                filter === "all"
+                  ? `${grouped.open.length} open, ${grouped.in_progress.length} in progress, ${grouped.done.length} done.`
+                  : `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} in this view.`
+              }
+              contentStyle={styles.summaryContent}
+            >
+              <Text variant="muted" selectable>
+                Tap a task to open it, or use the status circle to cycle it forward.
+              </Text>
+            </PageSection>
           }
           renderItem={({ item }) => (
             <TaskRow
@@ -155,89 +172,100 @@ function TaskRow({
   busy: boolean
   onCycle: () => void
 }) {
-  const palette = usePalette()
   const isDone = task.status === "done"
+  const palette = usePalette()
 
   return (
-    <View
-      style={[
-        styles.row,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <Pressable
-        onPress={onCycle}
-        disabled={busy}
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.statusButton,
-          {
-            borderColor: palette.border,
-            backgroundColor: isDone ? palette.primary : "transparent",
-            opacity: pressed ? 0.7 : 1,
-          },
-        ]}
-      >
-        {busy ? (
-          <ActivityIndicator size="small" color={isDone ? palette.primaryText : palette.text} />
-        ) : isDone ? (
-          <Ionicons name="checkmark" size={16} color={palette.primaryText} />
-        ) : task.status === "in_progress" ? (
-          <Ionicons name="ellipse" size={10} color={palette.text} />
-        ) : task.status === "open" ? (
-          <Ionicons name="ellipse-outline" size={16} color={palette.textMuted} />
-        ) : null}
-      </Pressable>
-
-      <Link
-        href={{ pathname: "/(tabs)/tasks/[id]", params: { id: task.id } }}
-        asChild
-      >
-        <Pressable style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.85 : 1 }]}>
-          <Text
-            style={{
-              color: palette.text,
-              fontSize: FontSize.md,
-              fontWeight: "500",
-              textDecorationLine: isDone ? "line-through" : "none",
-            }}
-            numberOfLines={2}
-          >
-            {task.title}
-          </Text>
-          <Text
-            style={{ color: palette.textMuted, fontSize: FontSize.xs, marginTop: 4 }}
-          >
-            {TASK_STATUS_LABELS[task.status]}
-          </Text>
+    <PageSection contentStyle={styles.rowContent}>
+      <View style={styles.row}>
+        <Pressable
+          onPress={onCycle}
+          disabled={busy}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.statusButton,
+            {
+              borderColor: palette.border,
+              backgroundColor: isDone ? palette.primary : "transparent",
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          {busy ? (
+            <LoadingState />
+          ) : isDone ? (
+            <Ionicons name="checkmark" size={16} color={palette.primaryText} />
+          ) : task.status === "in_progress" ? (
+            <Ionicons name="ellipse" size={10} color={palette.text} />
+          ) : task.status === "open" ? (
+            <Ionicons name="ellipse-outline" size={16} color={palette.textMuted} />
+          ) : null}
         </Pressable>
-      </Link>
 
-      <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
-    </View>
+        <Link
+          href={{ pathname: "/(tabs)/tasks/[id]", params: { id: task.id } }}
+          asChild
+        >
+          <Pressable style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.92 : 1 }]}>
+            <Text
+              style={[
+                styles.rowTitle,
+                { textDecorationLine: isDone ? "line-through" : "none" },
+              ]}
+              numberOfLines={2}
+            >
+              {task.title}
+            </Text>
+            <Text variant="muted" selectable style={styles.rowMeta}>
+              {TASK_STATUS_LABELS[task.status]}
+            </Text>
+          </Pressable>
+        </Link>
+
+        <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+      </View>
+    </PageSection>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: Spacing.md },
+  container: { flex: 1, paddingTop: Spacing.sm },
+  pagePadding: {
+    paddingHorizontal: Spacing.lg,
+  },
+  toolbarSection: {
+    gap: Spacing.md,
+  },
   toolbar: {
     flexDirection: "row",
-    paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
     alignItems: "center",
   },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  listContent: { padding: Spacing.lg },
+  flex: { flex: 1 },
+  state: { flex: 1, paddingHorizontal: Spacing.lg },
+  stateFill: { flex: 1 },
+  stateCard: { minHeight: 220 },
+  listContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  summaryContent: {
+    gap: Spacing.xs,
+  },
+  rowContent: {
+    padding: Spacing.md,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  rowTitle: {
+    fontSize: FontSize.md,
+    fontWeight: "500",
+  },
+  rowMeta: {
+    marginTop: 4,
   },
   statusButton: {
     width: 28,

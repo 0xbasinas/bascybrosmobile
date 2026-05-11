@@ -1,27 +1,15 @@
 import { Redirect } from "expo-router"
 import { useAuth } from "@clerk/expo"
-import { ActivityIndicator, ScrollView, View } from "react-native"
 
+import { AuthScreenShell } from "@/components/auth/auth-screen-shell"
 import { SignUpForm } from "@/components/sign-up-form"
-import { usePalette } from "@/lib/theme"
+import { LoadingScreen } from "@/components/ui/page"
 
 export default function SignUpScreen() {
   const { isLoaded, isSignedIn } = useAuth()
-  const palette = usePalette()
 
   if (!isLoaded) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: palette.background,
-        }}
-      >
-        <ActivityIndicator color={palette.text} />
-      </View>
-    )
+    return <LoadingScreen label="Loading sign up..." />
   }
 
   if (isSignedIn) {
@@ -29,17 +17,8 @@ export default function SignUpScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 24,
-        backgroundColor: palette.background,
-      }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <AuthScreenShell>
       <SignUpForm />
-    </ScrollView>
+    </AuthScreenShell>
   )
 }

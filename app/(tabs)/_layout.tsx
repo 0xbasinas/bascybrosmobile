@@ -1,8 +1,8 @@
 import { Tabs, Redirect } from "expo-router"
 import { useAuth } from "@clerk/expo"
-import { ActivityIndicator, View } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 
+import { LoadingScreen } from "@/components/ui/page"
 import { usePalette } from "@/lib/theme"
 import { useMe } from "@/lib/hooks/useMe"
 
@@ -12,18 +12,7 @@ export default function TabsLayout() {
   const meQuery = useMe()
 
   if (!isLoaded) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: palette.background,
-        }}
-      >
-        <ActivityIndicator color={palette.text} />
-      </View>
-    )
+    return <LoadingScreen label="Loading tabs..." />
   }
 
   if (!isSignedIn) {

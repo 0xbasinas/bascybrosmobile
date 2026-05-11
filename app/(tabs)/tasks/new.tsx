@@ -1,21 +1,14 @@
 import { useState } from "react"
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Alert, StyleSheet } from "react-native"
 import { useRouter } from "expo-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
+import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
 import { Segmented } from "@/components/ui/segmented"
 import { useApi, HttpError } from "@/lib/api"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { Spacing } from "@/lib/theme"
 import { TASK_STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@/lib/types"
 
 const STATUS_OPTIONS = TASK_STATUSES.map((s) => ({
@@ -24,7 +17,6 @@ const STATUS_OPTIONS = TASK_STATUSES.map((s) => ({
 }))
 
 export default function NewTaskScreen() {
-  const palette = usePalette()
   const router = useRouter()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
@@ -59,54 +51,55 @@ export default function NewTaskScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
+    <PageScrollView keyboardAvoiding>
+      <PageSection
+        title="New task"
+        description="Create something actionable and decide how it should start."
+        contentStyle={styles.sectionContent}
+        footer={
+          <AppButton
+            title="Create task"
+            size="lg"
+            fullWidth
+            loading={create.isPending}
+            onPress={handleSave}
+          />
+        }
+        footerStyle={styles.footer}
       >
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Title</Text>
+        <PageField label="Title" description="A short summary of the work to do.">
           <AppTextInput
             placeholder="Task title"
             value={title}
             onChangeText={setTitle}
             maxLength={200}
           />
-        </View>
+        </PageField>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Status</Text>
+        <PageField label="Status" description="Choose the starting column for this task.">
           <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-        </View>
+        </PageField>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Details (Markdown)</Text>
+        <PageField label="Details" description="Optional markdown notes, context, or acceptance criteria.">
           <AppTextInput
             multiline
             placeholder="Optional notes..."
             value={details}
             onChangeText={setDetails}
-            style={{ minHeight: 220 }}
+            style={styles.editor}
           />
-        </View>
-
-        <AppButton
-          title="Create task"
-          size="lg"
-          fullWidth
-          loading={create.isPending}
-          onPress={handleSave}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </PageField>
+      </PageSection>
+    </PageScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { padding: Spacing.lg, gap: Spacing.lg },
-  field: { gap: Spacing.sm },
-  label: { fontSize: FontSize.sm, fontWeight: "500" },
+  sectionContent: { gap: Spacing.lg },
+  footer: {
+    flexDirection: "column",
+  },
+  editor: {
+    minHeight: 220,
+  },
 })

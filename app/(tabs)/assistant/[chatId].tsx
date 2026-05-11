@@ -3,12 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
   View,
 } from "react-native"
 import { useLocalSearchParams } from "expo-router"
@@ -17,6 +15,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppTextInput } from "@/components/ui/input"
 import { MarkdownView } from "@/components/markdown"
+import { LoadingState, PageSection } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { consumeAssistantStream } from "@/lib/assistant-stream"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
@@ -186,25 +186,34 @@ export default function AssistantChatScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={process.env.EXPO_OS === "ios" ? 80 : 0}
     >
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.transcript}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >
         {query.isLoading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={palette.text} />
-          </View>
+          <LoadingState label="Loading conversation..." style={styles.loading} />
         ) : query.error ? (
-          <Text style={{ color: palette.danger }}>{query.error.message}</Text>
+          <PageSection title="Couldn't load chat" contentStyle={styles.noticeContent}>
+            <Text selectable style={{ color: palette.danger }}>
+              {query.error.message}
+            </Text>
+          </PageSection>
         ) : liveMessages.length === 0 ? (
-          <Text style={{ color: palette.textMuted, fontSize: FontSize.sm }}>
-            Ask the assistant about your notes, tasks, CTFs, or anything else.
-          </Text>
+          <PageSection
+            title="Start the conversation"
+            description="Ask the assistant about your notes, tasks, CTFs, or anything else."
+            contentStyle={styles.noticeContent}
+          >
+            <Text variant="muted" selectable>
+              Turn on web search when you want live web results mixed into the answer.
+            </Text>
+          </PageSection>
         ) : (
           liveMessages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
@@ -224,7 +233,7 @@ export default function AssistantChatScreen() {
         <View style={styles.composerToggleRow}>
           <View style={styles.toggleGroup}>
             <Switch value={webSearch} onValueChange={setWebSearch} />
-            <Text style={{ color: palette.textMuted, fontSize: FontSize.xs }}>
+            <Text variant="muted" selectable style={styles.toggleText}>
               Web search
             </Text>
           </View>
@@ -234,7 +243,7 @@ export default function AssistantChatScreen() {
               hitSlop={6}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
             >
-              <Text style={{ color: palette.danger, fontSize: FontSize.xs, fontWeight: "600" }}>
+              <Text selectable style={{ color: palette.danger, fontSize: FontSize.xs, fontWeight: "600" }}>
                 Stop
               </Text>
             </Pressable>
@@ -300,11 +309,12 @@ function MessageBubble({ message }: { message: LiveMessage }) {
           fontWeight: "600",
           marginBottom: 4,
         }}
+        selectable
       >
         {isUser ? "You" : "Assistant"}
       </Text>
       {isUser ? (
-        <Text style={{ color: palette.primaryText, fontSize: FontSize.md, lineHeight: 22 }}>
+        <Text selectable style={{ color: palette.primaryText, fontSize: FontSize.md, lineHeight: 22 }}>
           {message.contentMarkdown}
         </Text>
       ) : (
@@ -327,6 +337,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   loading: { padding: Spacing.xl, alignItems: "center" },
+  noticeContent: {
+    gap: Spacing.sm,
+  },
   bubble: {
     borderRadius: Radius.lg,
     padding: Spacing.md,
@@ -349,6 +362,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
+  },
+  toggleText: {
+    fontSize: FontSize.xs,
   },
   composerRow: {
     flexDirection: "row",

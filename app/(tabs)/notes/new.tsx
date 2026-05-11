@@ -1,23 +1,15 @@
 import { useState } from "react"
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Alert, StyleSheet } from "react-native"
 import { useRouter } from "expo-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { useApi, HttpError } from "@/lib/api"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
+import { Spacing } from "@/lib/theme"
 
 export default function NewNoteScreen() {
-  const palette = usePalette()
   const router = useRouter()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
@@ -48,62 +40,62 @@ export default function NewNoteScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
+    <PageScrollView keyboardAvoiding>
+      <PageSection
+        title="New note"
+        description="Capture a thought, finding, or checklist in markdown."
+        contentStyle={styles.sectionContent}
+        footer={
+          <AppButton
+            title="Save note"
+            size="lg"
+            fullWidth
+            loading={create.isPending}
+            onPress={handleSave}
+          />
+        }
+        footerStyle={styles.footer}
       >
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Title</Text>
+        <PageField label="Title" description="Give this note a clear name.">
           <AppTextInput
             placeholder="Note title"
             value={title}
             onChangeText={setTitle}
             maxLength={200}
           />
-        </View>
+        </PageField>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Tags (comma separated)</Text>
+        <PageField label="Tags" description="Comma-separated labels help filter notes later.">
           <AppTextInput
             placeholder="e.g. xss, web, recon"
             value={tags}
             onChangeText={setTags}
             autoCapitalize="none"
           />
-        </View>
+        </PageField>
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: palette.text }]}>Content (Markdown)</Text>
+        <PageField label="Content" description="Markdown is supported for longer notes.">
           <AppTextInput
             multiline
             placeholder="Write your note in Markdown..."
             value={content}
             onChangeText={setContent}
-            style={{ minHeight: 280 }}
+            style={styles.editor}
           />
-        </View>
-
-        <AppButton
-          title="Save note"
-          size="lg"
-          fullWidth
-          loading={create.isPending}
-          onPress={handleSave}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </PageField>
+      </PageSection>
+    </PageScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.lg,
+  sectionContent: {
     gap: Spacing.lg,
   },
-  field: { gap: Spacing.sm },
-  label: { fontSize: FontSize.sm, fontWeight: "500" },
+  footer: {
+    flexDirection: "column",
+  },
+  editor: {
+    minHeight: 280,
+  },
 })

@@ -8,6 +8,7 @@ import { Alert, StyleSheet } from "react-native"
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { HttpError, useApi } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
@@ -136,14 +137,18 @@ export default function ShareInboxScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
-      <PageSection
-        title="Shared content ready"
+      <TabHero
+        icon="share-social-outline"
+        eyebrow="Share inbox"
         description={
           hasShareIntent
             ? "Review the captured link or text before saving it as a note."
             : "There is no active share payload right now."
         }
-        contentStyle={styles.bannerContent}
+        stats={[
+          { label: "Link found", value: incomingUrl ? "Yes" : "No" },
+          { label: "Suggested title", value: incomingTitle ? "Ready" : "Fallback" },
+        ]}
       >
         <Text variant="muted" selectable>
           Only the shared URL or text is stored. Edit the title, tags, and markdown below before saving.
@@ -153,11 +158,11 @@ export default function ShareInboxScreen() {
             {error}
           </Text>
         ) : null}
-      </PageSection>
+      </TabHero>
 
       <PageSection
         title="Save to notes"
-        description="Turn the shared content into a searchable note."
+        description="Turn the shared content into a searchable note with cleaner metadata."
         contentStyle={styles.formContent}
         footer={
           <>
@@ -215,9 +220,6 @@ export default function ShareInboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  bannerContent: {
-    gap: Spacing.lg,
-  },
   errorText: {
     color: "#dc2626",
   },

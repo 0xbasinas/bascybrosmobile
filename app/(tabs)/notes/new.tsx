@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
+import { TabHero } from "@/components/ui/tab-hero"
 import { useApi, HttpError } from "@/lib/api"
 import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
 import { Spacing } from "@/lib/theme"
@@ -41,9 +42,18 @@ export default function NewNoteScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
+      <TabHero
+        icon="create-outline"
+        eyebrow="Capture ideas"
+        description="Save a thought, finding, or checklist in a format that is easy to search later."
+        stats={[
+          { label: "Title", value: title.trim() ? "Ready" : "Needed" },
+          { label: "Tags", value: tags.trim() ? String(tags.split(",").map((tag) => tag.trim()).filter(Boolean).length) : "0" },
+        ]}
+      />
       <PageSection
-        title="New note"
-        description="Capture a thought, finding, or checklist in markdown."
+        title="Write your note"
+        description="Add the structure first, then drop in as much markdown detail as you need."
         contentStyle={styles.sectionContent}
         footer={
           <AppButton

@@ -17,7 +17,10 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <AuthScreenShell>
+    <AuthScreenShell
+      title="Reset your password"
+      description="Enter your email and we’ll send you a code to get back into BascyBros."
+    >
       <ForgotPasswordForm />
     </AuthScreenShell>
   )

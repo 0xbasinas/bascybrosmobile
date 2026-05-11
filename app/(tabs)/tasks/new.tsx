@@ -7,6 +7,7 @@ import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
 import { Segmented } from "@/components/ui/segmented"
+import { TabHero } from "@/components/ui/tab-hero"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
 import { TASK_STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@/lib/types"
@@ -52,9 +53,18 @@ export default function NewTaskScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
+      <TabHero
+        icon="add-circle-outline"
+        eyebrow="Plan work"
+        description="Create something actionable, choose where it starts, and add context if you need it."
+        stats={[
+          { label: "Starting status", value: TASK_STATUS_LABELS[status] },
+          { label: "Details", value: details.trim() ? "Added" : "Optional" },
+        ]}
+      />
       <PageSection
-        title="New task"
-        description="Create something actionable and decide how it should start."
+        title="Set up the task"
+        description="Keep the title scannable and add supporting notes only where they help."
         contentStyle={styles.sectionContent}
         footer={
           <AppButton

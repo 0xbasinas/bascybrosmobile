@@ -17,7 +17,10 @@ export default function VerifyEmailScreen() {
   }
 
   return (
-    <AuthScreenShell>
+    <AuthScreenShell
+      title="Verify your email"
+      description="Confirm your email address to finish setting up your BascyBros account."
+    >
       <VerifyEmailForm />
     </AuthScreenShell>
   )

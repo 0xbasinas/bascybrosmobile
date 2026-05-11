@@ -1,14 +1,17 @@
 import { Tabs, Redirect } from "expo-router"
 import { useAuth } from "@clerk/expo"
 import { Ionicons } from "@expo/vector-icons"
+import { StyleSheet } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { LoadingScreen } from "@/components/ui/page"
-import { usePalette } from "@/lib/theme"
+import { Spacing, usePalette } from "@/lib/theme"
 import { useMe } from "@/lib/hooks/useMe"
 
 export default function TabsLayout() {
   const { isLoaded, isSignedIn } = useAuth()
   const palette = usePalette()
+  const insets = useSafeAreaInsets()
   const meQuery = useMe()
 
   if (!isLoaded) {
@@ -29,9 +32,21 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: palette.text,
         tabBarInactiveTintColor: palette.textMuted,
+        tabBarHideOnKeyboard: true,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
+        tabBarItemStyle: {
+          paddingTop: 4,
+        },
         tabBarStyle: {
-          backgroundColor: palette.background,
+          height: 62 + Math.max(insets.bottom, Spacing.sm),
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, Spacing.sm),
+          backgroundColor: palette.surface,
           borderTopColor: palette.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
         },
       }}
     >

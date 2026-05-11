@@ -17,7 +17,10 @@ export default function SignInScreen() {
   }
 
   return (
-    <AuthScreenShell>
+    <AuthScreenShell
+      title="Welcome back"
+      description="Sign in to access your BascyBros workspace."
+    >
       <SignInForm />
     </AuthScreenShell>
   )

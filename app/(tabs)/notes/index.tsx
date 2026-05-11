@@ -15,6 +15,7 @@ import { AppButton } from "@/components/ui/button"
 import { AppTextInput } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
@@ -65,11 +66,16 @@ export default function NotesListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.pagePadding}>
-        <PageSection
-          title="Your notes"
-          description="Search, filter by tag, and jump back into your latest research."
-          contentStyle={styles.toolbarSection}
+      <View style={styles.topPadding}>
+        <TabHero
+          icon="document-text-outline"
+          eyebrow="Knowledge base"
+          description="Search your notes, filter by tag, and jump back into your latest research."
+          stats={[
+            { label: "Visible notes", value: String(notes.length) },
+            { label: "Known tags", value: String(allTags.length) },
+            { label: "Current view", value: tag ?? "All" },
+          ]}
         >
           <View style={styles.toolbar}>
             <AppTextInput
@@ -82,7 +88,7 @@ export default function NotesListScreen() {
               style={styles.flex}
             />
             <AppButton
-              title="New"
+              title="New note"
               size="md"
               onPress={() => router.push("/(tabs)/notes/new")}
             />
@@ -109,7 +115,7 @@ export default function NotesListScreen() {
               ))}
             </ScrollView>
           ) : null}
-        </PageSection>
+        </TabHero>
       </View>
 
       {query.isLoading ? (
@@ -117,13 +123,13 @@ export default function NotesListScreen() {
           <LoadingState label="Loading notes..." style={styles.stateFill} />
         </View>
       ) : query.error ? (
-        <View style={styles.pagePadding}>
+        <View style={styles.topPadding}>
           <PageSection contentStyle={styles.stateCard}>
             <EmptyState title="Couldn't load notes" description={query.error.message} />
           </PageSection>
         </View>
       ) : notes.length === 0 ? (
-        <View style={styles.pagePadding}>
+        <View style={styles.topPadding}>
           <PageSection contentStyle={styles.stateCard}>
             <EmptyState title="No notes yet" description="Tap New to write your first note." />
           </PageSection>
@@ -132,6 +138,7 @@ export default function NotesListScreen() {
         <FlatList
           data={notes}
           keyExtractor={(item) => item.id}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           refreshControl={
@@ -140,21 +147,6 @@ export default function NotesListScreen() {
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
-          }
-          ListHeaderComponent={
-            <PageSection
-              title={`${notes.length} ${notes.length === 1 ? "note" : "notes"}`}
-              description={
-                tag
-                  ? `Showing results tagged ${tag}.`
-                  : "Showing your full note archive."
-              }
-              contentStyle={styles.summaryContent}
-            >
-              <Text variant="muted" selectable>
-                Pull down anytime to refresh your latest notes.
-              </Text>
-            </PageSection>
           }
           renderItem={({ item }) => <NoteRow note={item} />}
         />
@@ -237,12 +229,10 @@ function NoteRow({ note }: { note: Note }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: Spacing.sm },
-  pagePadding: {
+  container: { flex: 1 },
+  topPadding: {
     paddingHorizontal: Spacing.lg,
-  },
-  toolbarSection: {
-    gap: Spacing.md,
+    paddingTop: Spacing.md,
   },
   toolbar: {
     flexDirection: "row",
@@ -257,21 +247,23 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  state: { flex: 1, paddingHorizontal: Spacing.lg },
+  state: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
   stateFill: { flex: 1 },
   stateCard: { minHeight: 220 },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  summaryContent: {
-    gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
   rowContent: {
     gap: Spacing.md,
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   rowHeader: {
     flexDirection: "row",
@@ -289,6 +281,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
+    flexWrap: "wrap",
   },
   metaTagText: {
     flex: 1,

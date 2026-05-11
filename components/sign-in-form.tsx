@@ -1,21 +1,15 @@
 import { SocialConnections } from '@/components/social-connections';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
+import { APP_NAME } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { useSignIn } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
-import { Pressable, type TextInput, View } from 'react-native';
+import { type TextInput, View } from 'react-native';
 
 export function SignInForm() {
   const router = useRouter();
@@ -75,79 +69,72 @@ export function SignInForm() {
   }
 
   return (
-    <View className="gap-6">
-      <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
-        <CardHeader>
-          <CardTitle className="text-center text-xl sm:text-left">Sign in to clerk-auth</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Welcome back! Please sign in to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-6">
-          <View className="gap-6">
-            <View className="gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                placeholder="m@example.com"
-                keyboardType="email-address"
-                autoComplete="email"
-                autoCapitalize="none"
-                onChangeText={setEmail}
-                onSubmitEditing={onEmailSubmitEditing}
-                returnKeyType="next"
-                submitBehavior="submit"
-              />
-              {error.email ? (
-                <Text className="text-sm font-medium text-destructive">{error.email}</Text>
-              ) : null}
-            </View>
-            <View className="gap-1.5">
-              <View className="flex-row items-center">
-                <Label htmlFor="password">Password</Label>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="web:h-fit ml-auto h-4 px-1 py-0 sm:h-4"
-                  onPress={() => {
-                    router.push('/forgot-password' as never);
-                  }}>
-                  <Text className="font-normal leading-4">Forgot your password?</Text>
-                </Button>
-              </View>
-              <Input
-                ref={passwordInputRef}
-                id="password"
-                secureTextEntry
-                onChangeText={setPassword}
-                returnKeyType="send"
-                onSubmitEditing={onSubmit}
-              />
-              {error.password ? (
-                <Text className="text-sm font-medium text-destructive">{error.password}</Text>
-              ) : null}
-            </View>
-            <Button className={cn("w-full", fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
-              <Text>Continue</Text>
+    <View className="gap-5">
+      <View className="gap-4">
+        <View className="gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            value={email}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoComplete="email"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            onSubmitEditing={onEmailSubmitEditing}
+            returnKeyType="next"
+            submitBehavior="submit"
+          />
+          {error.email ? (
+            <Text className="text-sm font-medium text-destructive">{error.email}</Text>
+          ) : null}
+        </View>
+        <View className="gap-1.5">
+          <View className="flex-row items-center justify-between gap-3">
+            <Label htmlFor="password">Password</Label>
+            <Button
+              variant="link"
+              className="h-auto rounded-none px-0 py-0"
+              onPress={() => {
+                router.push('/forgot-password' as never);
+              }}>
+              <Text className="text-xs font-normal sm:text-sm">Forgot password?</Text>
             </Button>
           </View>
-          <Text className="text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Pressable
-              onPress={() => {
-                router.push('/sign-up' as never);
-              }}>
-              <Text className="text-sm underline underline-offset-4">Sign up</Text>
-            </Pressable>
-          </Text>
-          <View className="flex-row items-center">
-            <Separator className="flex-1" />
-            <Text className="px-4 text-sm text-muted-foreground">or</Text>
-            <Separator className="flex-1" />
-          </View>
-          <SocialConnections />
-        </CardContent>
-      </Card>
+          <Input
+            ref={passwordInputRef}
+            id="password"
+            value={password}
+            secureTextEntry
+            onChangeText={setPassword}
+            returnKeyType="send"
+            onSubmitEditing={onSubmit}
+          />
+          {error.password ? (
+            <Text className="text-sm font-medium text-destructive">{error.password}</Text>
+          ) : null}
+        </View>
+        <Button className={cn('w-full', fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
+          <Text>Continue to {APP_NAME}</Text>
+        </Button>
+      </View>
+      <View className="flex-row flex-wrap items-center justify-center gap-1.5">
+        <Text className="text-sm text-muted-foreground">Don&apos;t have an account?</Text>
+        <Button
+          variant="link"
+          className="h-auto rounded-none px-0 py-0"
+          onPress={() => {
+            router.push('/sign-up' as never);
+          }}>
+          <Text className="text-sm">Sign up</Text>
+        </Button>
+      </View>
+      <View className="flex-row items-center">
+        <Separator className="flex-1" />
+        <Text className="px-4 text-sm text-muted-foreground">or continue with</Text>
+        <Separator className="flex-1" />
+      </View>
+      <SocialConnections />
     </View>
   );
 }

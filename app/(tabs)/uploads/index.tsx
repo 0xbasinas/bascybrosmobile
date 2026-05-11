@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppButton } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
+import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { useUploadImage, type PickedImage } from "@/lib/hooks/useUploadImage"
@@ -87,31 +88,36 @@ export default function UploadsScreen() {
   }
 
   const files = query.data?.files ?? []
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0)
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={styles.topPadding}>
-        <PageSection
-          title="Uploads"
+        <TabHero
+          icon="cloud-upload-outline"
+          eyebrow="Capture board"
           description="Capture screenshots or photos, then reopen them from your mobile workspace."
-          contentStyle={styles.toolbarSection}
+          stats={[
+            { label: "Files", value: String(files.length) },
+            { label: "Storage", value: formatSize(totalSize) },
+          ]}
         >
-          <View style={styles.toolbar}>
+          <View style={styles.actionStack}>
             <AppButton
               title="Take photo"
               onPress={handleCamera}
               loading={busy}
-              style={styles.flex}
+              fullWidth
             />
             <AppButton
               title="From library"
               variant="secondary"
               onPress={handleLibrary}
               loading={busy}
-              style={styles.flex}
+              fullWidth
             />
           </View>
-        </PageSection>
+        </TabHero>
       </View>
 
       {query.isLoading ? (
@@ -138,6 +144,7 @@ export default function UploadsScreen() {
           data={files}
           keyExtractor={(item) => item.id}
           numColumns={COLUMNS}
+          contentInsetAdjustmentBehavior="automatic"
           columnWrapperStyle={{ gap: Spacing.sm }}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           contentContainerStyle={styles.listContent}
@@ -147,17 +154,6 @@ export default function UploadsScreen() {
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
-          }
-          ListHeaderComponent={
-            <PageSection
-              title={`${files.length} ${files.length === 1 ? "file" : "files"}`}
-              description="Tap a card to view the original asset."
-              contentStyle={styles.summaryContent}
-            >
-              <Text variant="muted" selectable>
-                Delete anything you no longer need directly from the grid.
-              </Text>
-            </PageSection>
           }
           renderItem={({ item }) => (
             <Tile
@@ -198,7 +194,7 @@ function Tile({
       }}
       style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }, { width: tileWidth }]}
     >
-      <PageSection contentStyle={styles.tileContent}>
+      <PageSection style={styles.tileCard} contentStyle={styles.tileContent}>
         <Image
           source={{ uri: file.url }}
           style={{ width: "100%", height: tileWidth, backgroundColor: palette.surfaceMuted }}
@@ -232,17 +228,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
   },
-  toolbarSection: {
-    gap: Spacing.md,
-  },
-  toolbar: {
-    flexDirection: "row",
+  actionStack: {
     gap: Spacing.sm,
   },
-  flex: { flex: 1 },
   statePadding: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   stateFill: {
     flex: 1,
@@ -250,18 +242,19 @@ const styles = StyleSheet.create({
   stateCard: { minHeight: 220 },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
-  summaryContent: {
-    gap: Spacing.xs,
+  tileCard: {
+    overflow: "hidden",
   },
   tileContent: {
     gap: 0,
     padding: 0,
   },
   tileMeta: {
-    padding: Spacing.sm,
-    gap: 4,
+    padding: Spacing.md,
+    gap: Spacing.xs,
   },
   tileTitle: {
     fontSize: FontSize.xs,

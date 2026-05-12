@@ -8,7 +8,7 @@ import { TASK_STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@/lib/types"
 
 const STATUS_OPTIONS = TASK_STATUSES.map((status) => ({
   value: status,
-  label: status === "in_progress" ? "In Prog." : TASK_STATUS_LABELS[status],
+  label: status === "in_progress" ? "Progress" : TASK_STATUS_LABELS[status],
 }))
 
 export function TaskFields({

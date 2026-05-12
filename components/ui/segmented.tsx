@@ -32,19 +32,17 @@ export function Segmented<T extends string>({
         return (
           <Pressable
             key={opt.value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
             onPress={() => onChange(opt.value)}
             style={({ pressed }) => [
               styles.segment,
-              active
-                ? { backgroundColor: palette.primary }
-                : { backgroundColor: "transparent" },
-              pressed ? { opacity: 0.85 } : null,
+              active ? { backgroundColor: palette.primary } : { backgroundColor: "transparent" },
+              pressed ? { opacity: 0.88 } : null,
             ]}
           >
             <Text
               numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
               style={[
                 styles.label,
                 {
@@ -64,15 +62,18 @@ export function Segmented<T extends string>({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
+    alignItems: "stretch",
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 3,
-    gap: 3,
+    padding: Spacing.xs,
+    gap: Spacing.xs,
   },
   segment: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     minHeight: 40,
-    paddingVertical: Spacing.sm - 1,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.sm,
     alignItems: "center",
@@ -80,9 +81,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FontSize.sm,
-    fontWeight: "500",
+    fontWeight: "600",
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 18,
     includeFontPadding: false,
   },
 })

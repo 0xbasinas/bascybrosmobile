@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AppButton } from "@/components/ui/button"
 import { NoteFields } from "@/components/notes/note-fields"
 import { useApi, HttpError } from "@/lib/api"
+import { Spacing } from "@/lib/theme"
 import { PageScrollView, PageSection } from "@/components/ui/page"
 
 export default function NewNoteScreen() {
@@ -43,16 +44,6 @@ export default function NewNoteScreen() {
       <PageSection
         title="Write your note"
         description="Add the structure first, then drop in as much markdown detail as you need."
-        footer={
-          <AppButton
-            title="Save note"
-            size="lg"
-            fullWidth
-            loading={create.isPending}
-            onPress={handleSave}
-          />
-        }
-        footerStyle={{ flexDirection: "column" }}
       >
         <NoteFields
           title={title}
@@ -64,6 +55,14 @@ export default function NewNoteScreen() {
           contentMinHeight={320}
         />
       </PageSection>
+      <AppButton
+        title="Save note"
+        size="lg"
+        fullWidth
+        loading={create.isPending}
+        onPress={handleSave}
+        style={{ marginTop: Spacing.lg }}
+      />
     </PageScrollView>
   )
 }

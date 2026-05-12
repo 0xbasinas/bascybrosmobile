@@ -95,7 +95,7 @@ export function PageSection({
   footerStyle?: StyleProp<ViewStyle>
 }) {
   return (
-    <Card style={style}>
+    <Card style={style} className="w-full shrink-0">
       {title || description ? (
         <CardHeader style={styles.sectionHeader}>
           {title ? <CardTitle>{title}</CardTitle> : null}
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   sectionFooter: {
-    paddingTop: 0,
+    paddingTop: Spacing.md,
     gap: Spacing.sm,
   },
   field: {

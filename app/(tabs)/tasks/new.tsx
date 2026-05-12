@@ -7,6 +7,7 @@ import { AppButton } from "@/components/ui/button"
 import { TaskFields } from "@/components/tasks/task-fields"
 import { PageScrollView, PageSection } from "@/components/ui/page"
 import { useApi, HttpError } from "@/lib/api"
+import { Spacing } from "@/lib/theme"
 import { type TaskStatus } from "@/lib/types"
 
 export default function NewTaskScreen() {
@@ -48,16 +49,6 @@ export default function NewTaskScreen() {
       <PageSection
         title="Set up the task"
         description="Keep the title scannable and add supporting notes only where they help."
-        footer={
-          <AppButton
-            title="Create task"
-            size="lg"
-            fullWidth
-            loading={create.isPending}
-            onPress={handleSave}
-          />
-        }
-        footerStyle={{ flexDirection: "column" }}
       >
         <TaskFields
           title={title}
@@ -68,6 +59,14 @@ export default function NewTaskScreen() {
           onStatusChange={setStatus}
         />
       </PageSection>
+      <AppButton
+        title="Create task"
+        size="lg"
+        fullWidth
+        loading={create.isPending}
+        onPress={handleSave}
+        style={{ marginTop: Spacing.lg }}
+      />
     </PageScrollView>
   )
 }

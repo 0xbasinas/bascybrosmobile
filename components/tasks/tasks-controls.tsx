@@ -12,7 +12,7 @@ type FilterValue = TaskStatus | "all"
 const FILTER_OPTIONS: { value: FilterValue; label: string }[] = [
   { value: "all", label: "All" },
   { value: "open", label: "Open" },
-  { value: "in_progress", label: "In Prog." },
+  { value: "in_progress", label: "Progress" },
   { value: "done", label: "Done" },
 ]
 

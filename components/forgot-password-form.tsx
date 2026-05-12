@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
 import { APP_NAME } from '@/lib/config';
+import { checkEmailAllowed } from '@/lib/check-email';
 import { cn } from '@/lib/utils';
 import { useSignIn } from '@clerk/expo';
 import { useRouter } from 'expo-router';
@@ -14,17 +15,28 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = React.useState("");
   const { signIn, fetchStatus } = useSignIn();
   const [error, setError] = React.useState<{ email?: string; password?: string }>({});
+  const [isCheckingAllowlist, setIsCheckingAllowlist] = React.useState(false);
 
   const onSubmit = async () => {
     if (!email) {
       setError({ email: 'Email is required' });
       return;
     }
-    if (fetchStatus === 'fetching') {
+    if (fetchStatus === 'fetching' || isCheckingAllowlist) {
       return;
     }
 
+    setError({});
+    setIsCheckingAllowlist(true);
     try {
+      const allow = await checkEmailAllowed(email);
+      if (!allow.allowed) {
+        setError({
+          email: allow.reason ?? 'This email is not allowed to use password reset.',
+        });
+        return;
+      }
+
       const { error: createError } = await signIn.create({
         identifier: email,
       });
@@ -48,6 +60,8 @@ export function ForgotPasswordForm() {
     } catch (err) {
       // See https://go.clerk.com/mRUDrIe for more info on error handling
       setError({ email: err instanceof Error ? err.message : 'Something went wrong' });
+    } finally {
+      setIsCheckingAllowlist(false);
     }
   };
 
@@ -74,8 +88,13 @@ export function ForgotPasswordForm() {
             <Text className="text-sm font-medium text-destructive">{error.email}</Text>
           ) : null}
         </View>
-        <Button className={cn('w-full', fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
-          <Text>Send reset code</Text>
+        <Button
+          className={cn(
+            'w-full',
+            (fetchStatus === 'fetching' || isCheckingAllowlist) && 'opacity-50',
+          )}
+          onPress={onSubmit}>
+          <Text>{isCheckingAllowlist ? 'Checking access…' : 'Send reset code'}</Text>
         </Button>
       </View>
       <View className="flex-row flex-wrap items-center justify-center gap-1.5">

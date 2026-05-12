@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { APP_NAME } from '@/lib/config';
+import { checkEmailAllowed } from '@/lib/check-email';
 import { cn } from '@/lib/utils';
 import { useSignUp } from '@clerk/expo';
 import { useRouter } from 'expo-router';
@@ -18,12 +19,23 @@ export function SignUpForm() {
   const [password, setPassword] = React.useState('');
   const passwordInputRef = React.useRef<TextInput>(null);
   const [error, setError] = React.useState<{ email?: string; password?: string }>({});
+  const [isCheckingAllowlist, setIsCheckingAllowlist] = React.useState(false);
 
   async function onSubmit() {
-    if (fetchStatus === 'fetching') return;
+    if (fetchStatus === 'fetching' || isCheckingAllowlist) return;
 
-    // Start sign-up process using email and password provided
+    setError({});
+    setIsCheckingAllowlist(true);
     try {
+      const allow = await checkEmailAllowed(email);
+      if (!allow.allowed) {
+        setError({
+          email: allow.reason ?? 'This email is not allowed to create an account.',
+        });
+        return;
+      }
+
+      // Start sign-up process using email and password provided
       const { error: createError } = await signUp.password({
         emailAddress: email,
         password,
@@ -55,6 +67,8 @@ export function SignUpForm() {
       const isEmailMessage =
         message.toLowerCase().includes('identifier') || message.toLowerCase().includes('email');
       setError(isEmailMessage ? { email: message } : { password: message });
+    } finally {
+      setIsCheckingAllowlist(false);
     }
   }
 
@@ -101,8 +115,15 @@ export function SignUpForm() {
             <Text className="text-sm font-medium text-destructive">{error.password}</Text>
           ) : null}
         </View>
-        <Button className={cn('w-full', fetchStatus === 'fetching' && 'opacity-50')} onPress={onSubmit}>
-          <Text>Create your {APP_NAME} account</Text>
+        <Button
+          className={cn(
+            'w-full',
+            (fetchStatus === 'fetching' || isCheckingAllowlist) && 'opacity-50',
+          )}
+          onPress={onSubmit}>
+          <Text>
+            {isCheckingAllowlist ? 'Checking access…' : `Create your ${APP_NAME} account`}
+          </Text>
         </Button>
       </View>
       <View className="flex-row flex-wrap items-center justify-center gap-1.5">

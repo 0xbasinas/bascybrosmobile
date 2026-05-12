@@ -31,7 +31,7 @@ const SOCIAL_CONNECTION_STRATEGIES: {
     }
   ];
 
-export function SocialConnections() {
+export function SocialConnections({ isAddingAccount = false }: { isAddingAccount?: boolean } = {}) {
   useWarmUpBrowser();
   const { colorScheme } = useColorScheme();
   const { startSSOFlow } = useSSO();
@@ -52,7 +52,11 @@ export function SocialConnections() {
         // If sign in was successful, set the active session
         if (createdSessionId && setActive) {
           await setActive({ session: createdSessionId });
-          router.replace('/(tabs)/notes');
+          if (isAddingAccount && router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/notes');
+          }
           return;
         }
 

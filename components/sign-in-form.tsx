@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import * as React from 'react';
 import { type TextInput, View } from 'react-native';
 
-export function SignInForm() {
+export function SignInForm({ isAddingAccount = false }: { isAddingAccount?: boolean } = {}) {
   const router = useRouter();
   const { signIn, fetchStatus } = useSignIn();
   const [email, setEmail] = React.useState('');
@@ -63,6 +63,13 @@ export function SignInForm() {
       if (signIn.status === 'complete') {
         setError({ email: '', password: '' });
         await signIn.finalize();
+        if (isAddingAccount) {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/notes' as never);
+          }
+        }
         return;
       }
       // TODO: Handle other statuses
@@ -155,7 +162,7 @@ export function SignInForm() {
         <Text className="px-4 text-sm text-muted-foreground">or continue with</Text>
         <Separator className="flex-1" />
       </View>
-      <SocialConnections />
+      <SocialConnections isAddingAccount={isAddingAccount} />
     </View>
   );
 }

@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Text } from '@/components/ui/text';
-import { useAuth, useUser } from '@clerk/expo';
+import { useAuth, useUser, useUserProfileModal } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import type { TriggerRef } from '@rn-primitives/popover';
 import { LogOutIcon, PlusIcon, SettingsIcon } from 'lucide-react-native';
@@ -18,6 +18,7 @@ export function UserMenu() {
   const { user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
+  const { presentUserProfile, isAvailable: isNativeProfileModalAvailable } = useUserProfileModal();
   const popoverTriggerRef = React.useRef<TriggerRef>(null);
 
   async function onSignOut() {
@@ -53,7 +54,12 @@ export function UserMenu() {
               variant="outline"
               size="sm"
               onPress={() => {
-                // TODO: Navigate to account settings screen
+                popoverTriggerRef.current?.close();
+                if (isNativeProfileModalAvailable) {
+                  void presentUserProfile();
+                  return;
+                }
+                router.push('/manage-account' as never);
               }}>
               <Icon as={SettingsIcon} className="size-4" />
               <Text>Manage Account</Text>
@@ -69,7 +75,8 @@ export function UserMenu() {
           size="lg"
           className="h-16 justify-start gap-3 rounded-none rounded-b-md px-3 sm:h-14"
           onPress={() => {
-            // TODO: Navigate to add account screen
+            popoverTriggerRef.current?.close();
+            router.push('/sign-in?addAccount=1' as never);
           }}>
           <View className="size-10 items-center justify-center">
             <View className="border-border bg-muted/50 size-7 items-center justify-center rounded-full border border-dashed">

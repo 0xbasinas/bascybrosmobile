@@ -4,21 +4,15 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
-import { AppTextInput } from "@/components/ui/input"
+import { STATUS_OPTIONS, TaskFields } from "@/components/tasks/task-fields"
 import { MarkdownView } from "@/components/markdown"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingScreen, PageField, PageScrollView, PageSection } from "@/components/ui/page"
 import { Segmented } from "@/components/ui/segmented"
-import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
-import { TASK_STATUS_LABELS, TASK_STATUSES, type Task, type TaskStatus } from "@/lib/types"
-
-const STATUS_OPTIONS = TASK_STATUSES.map((s) => ({
-  value: s,
-  label: s === "in_progress" ? "In Prog." : TASK_STATUS_LABELS[s],
-}))
+import { TASK_STATUS_LABELS, type Task, type TaskStatus } from "@/lib/types"
 
 export default function TaskDetailScreen() {
   const router = useRouter()
@@ -114,20 +108,10 @@ export default function TaskDetailScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
-      <TabHero
-        icon={editing ? "create-outline" : "checkmark-done-outline"}
-        eyebrow={editing ? "Editing task" : "Task overview"}
-        description={editing ? "Adjust the title, status, or supporting markdown details." : task.title}
-        stats={[
-          { label: "Status", value: TASK_STATUS_LABELS[status] },
-          { label: "Details", value: task.detailsMarkdown.trim() ? "Added" : "None" },
-        ]}
-      />
       {editing ? (
         <PageSection
           title="Update task details"
           description="Keep the task easy to scan and add extra context only where it helps execution."
-          contentStyle={styles.sectionContent}
           footer={
             <>
               <AppButton
@@ -151,24 +135,23 @@ export default function TaskDetailScreen() {
           }
           footerStyle={styles.footer}
         >
-          <PageField label="Title" description="Keep it short enough to scan in the task list.">
-            <AppTextInput value={title} onChangeText={setTitle} maxLength={200} />
-          </PageField>
-          <PageField label="Status" description="Choose where this task belongs right now.">
-            <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-          </PageField>
-          <PageField label="Details" description="Use markdown for context, steps, or notes.">
-            <AppTextInput
-              multiline
-              value={details}
-              onChangeText={setDetails}
-              style={styles.editor}
-            />
-          </PageField>
+          <TaskFields
+            title={title}
+            details={details}
+            status={status}
+            onTitleChange={setTitle}
+            onDetailsChange={setDetails}
+            onStatusChange={setStatus}
+            titleDescription="Keep it short enough to scan in the task list."
+            statusDescription="Choose where this task belongs right now."
+            detailsDescription="Use markdown for context, steps, or notes."
+            detailsMinHeight={260}
+            detailsPlaceholder="Add markdown details..."
+          />
         </PageSection>
       ) : (
         <PageSection
-          title="Task details"
+          title={task.title}
           description={TASK_STATUS_LABELS[task.status]}
           contentStyle={styles.sectionContent}
           footer={
@@ -226,8 +209,5 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "column",
     gap: Spacing.sm,
-  },
-  editor: {
-    minHeight: 240,
   },
 })

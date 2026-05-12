@@ -6,9 +6,8 @@ import { useShareIntentContext } from "expo-share-intent"
 import { Alert, StyleSheet } from "react-native"
 
 import { AppButton } from "@/components/ui/button"
-import { AppTextInput } from "@/components/ui/input"
-import { PageField, PageScrollView, PageSection } from "@/components/ui/page"
-import { TabHero } from "@/components/ui/tab-hero"
+import { NoteFields } from "@/components/notes/note-fields"
+import { PageScrollView, PageSection } from "@/components/ui/page"
 import { Text } from "@/components/ui/text"
 import { HttpError, useApi } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
@@ -137,32 +136,13 @@ export default function ShareInboxScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
-      <TabHero
-        icon="share-social-outline"
-        eyebrow="Share inbox"
+      <PageSection
+        title="Save to notes"
         description={
           hasShareIntent
             ? "Review the captured link or text before saving it as a note."
             : "There is no active share payload right now."
         }
-        stats={[
-          { label: "Link found", value: incomingUrl ? "Yes" : "No" },
-          { label: "Suggested title", value: incomingTitle ? "Ready" : "Fallback" },
-        ]}
-      >
-        <Text variant="muted" selectable>
-          Only the shared URL or text is stored. Edit the title, tags, and markdown below before saving.
-        </Text>
-        {error ? (
-          <Text selectable style={styles.errorText}>
-            {error}
-          </Text>
-        ) : null}
-      </TabHero>
-
-      <PageSection
-        title="Save to notes"
-        description="Turn the shared content into a searchable note with cleaner metadata."
         contentStyle={styles.formContent}
         footer={
           <>
@@ -187,33 +167,20 @@ export default function ShareInboxScreen() {
         }
         footerStyle={styles.footer}
       >
-        <PageField label="Title" description="Use something recognizable in your note list.">
-          <AppTextInput
-            placeholder="Note title"
-            value={title}
-            onChangeText={setTitle}
-            maxLength={200}
-          />
-        </PageField>
-
-        <PageField label="Tags" description="Comma-separated tags help group imported content.">
-          <AppTextInput
-            placeholder="e.g. shared, web"
-            value={tags}
-            onChangeText={setTags}
-            autoCapitalize="none"
-          />
-        </PageField>
-
-        <PageField label="Content" description="Shared text or the captured link will appear here.">
-          <AppTextInput
-            multiline
-            placeholder="Shared text or link will appear here..."
-            value={content}
-            onChangeText={setContent}
-            style={styles.editor}
-          />
-        </PageField>
+        <NoteFields
+          title={title}
+          tags={tags}
+          content={content}
+          onTitleChange={setTitle}
+          onTagsChange={setTags}
+          onContentChange={setContent}
+          titleDescription="Use something recognizable in your note list."
+          tagsDescription="Comma-separated tags help group imported content."
+          contentDescription="Shared text or the captured link will appear here."
+          contentPlaceholder="Shared text or link will appear here..."
+          contentMinHeight={300}
+        />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </PageSection>
     </PageScrollView>
   )
@@ -229,8 +196,5 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "column",
     gap: Spacing.sm,
-  },
-  editor: {
-    minHeight: 260,
   },
 })

@@ -1,30 +1,23 @@
 import { useEffect, useRef, useState } from "react"
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   View,
 } from "react-native"
 import { useLocalSearchParams } from "expo-router"
-import { Ionicons } from "@expo/vector-icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { AppTextInput } from "@/components/ui/input"
-import { MarkdownView } from "@/components/markdown"
+import { ChatComposer } from "@/components/assistant/chat-composer"
+import { ChatMessageBubble, type LiveMessage } from "@/components/assistant/chat-message-bubble"
 import { LoadingState, PageSection } from "@/components/ui/page"
-import { TabHero } from "@/components/ui/tab-hero"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { consumeAssistantStream } from "@/lib/assistant-stream"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat, AssistantMessage } from "@/lib/types"
-
-type LiveMessage = AssistantMessage & { pending?: boolean }
 
 export default function AssistantChatScreen() {
   const palette = usePalette()
@@ -199,17 +192,6 @@ export default function AssistantChatScreen() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >
-        {query.data?.chat ? (
-          <TabHero
-            icon="sparkles-outline"
-            eyebrow="Workspace chat"
-            description={query.data.chat.title}
-            stats={[
-              { label: "Messages", value: String(liveMessages.length) },
-              { label: "Mode", value: webSearch ? "Web + workspace" : "Workspace" },
-            ]}
-          />
-        ) : null}
         {query.isLoading ? (
           <LoadingState label="Loading conversation..." style={styles.loading} />
         ) : query.error ? (
@@ -230,7 +212,7 @@ export default function AssistantChatScreen() {
           </PageSection>
         ) : (
           liveMessages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+            <ChatMessageBubble key={msg.id} message={msg} />
           ))
         )}
       </ScrollView>
@@ -244,114 +226,17 @@ export default function AssistantChatScreen() {
           },
         ]}
       >
-        <View
-          style={[
-            styles.composerCard,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <View style={styles.composerToggleRow}>
-            <View style={styles.toggleGroup}>
-              <Switch value={webSearch} onValueChange={setWebSearch} />
-              <Text variant="muted" selectable style={styles.toggleText}>
-                Web search
-              </Text>
-            </View>
-            {streaming ? (
-              <Pressable
-                onPress={handleStop}
-                hitSlop={6}
-                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-              >
-                <Text
-                  selectable
-                  style={{ color: palette.danger, fontSize: FontSize.xs, fontWeight: "600" }}
-                >
-                  Stop
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          <View style={styles.composerRow}>
-            <AppTextInput
-              placeholder="Message the assistant..."
-              value={prompt}
-              onChangeText={setPrompt}
-              multiline
-              style={{ flex: 1, minHeight: 48, maxHeight: 140 }}
-              editable={!streaming}
-            />
-            <Pressable
-              onPress={handleSend}
-              disabled={streaming || !prompt.trim()}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.sendButton,
-                {
-                  backgroundColor:
-                    streaming || !prompt.trim() ? palette.surfaceMuted : palette.primary,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Ionicons
-                name="arrow-up"
-                size={20}
-                color={
-                  streaming || !prompt.trim() ? palette.textMuted : palette.primaryText
-                }
-              />
-            </Pressable>
-          </View>
-        </View>
+        <ChatComposer
+          prompt={prompt}
+          streaming={streaming}
+          webSearch={webSearch}
+          onPromptChange={setPrompt}
+          onToggleWebSearch={setWebSearch}
+          onSend={handleSend}
+          onStop={handleStop}
+        />
       </View>
     </KeyboardAvoidingView>
-  )
-}
-
-function MessageBubble({ message }: { message: LiveMessage }) {
-  const palette = usePalette()
-  const isUser = message.role === "user"
-  return (
-    <View
-      style={[
-        styles.bubble,
-        {
-          backgroundColor: isUser ? palette.primary : palette.surface,
-          borderColor: palette.border,
-          alignSelf: isUser ? "flex-end" : "flex-start",
-        },
-      ]}
-    >
-      <Text
-        style={{
-          color: isUser ? palette.primaryText : palette.textMuted,
-          fontSize: FontSize.xs,
-          fontWeight: "600",
-          marginBottom: 4,
-        }}
-        selectable
-      >
-        {isUser ? "You" : "Assistant"}
-      </Text>
-      {isUser ? (
-        <Text selectable style={{ color: palette.primaryText, fontSize: FontSize.md, lineHeight: 22 }}>
-          {message.contentMarkdown}
-        </Text>
-      ) : (
-        <View>
-          {message.contentMarkdown ? (
-            <MarkdownView markdown={message.contentMarkdown} />
-          ) : (
-            <ActivityIndicator color={palette.textMuted} />
-          )}
-        </View>
-      )}
-    </View>
   )
 }
 
@@ -365,46 +250,8 @@ const styles = StyleSheet.create({
   noticeContent: {
     gap: Spacing.sm,
   },
-  bubble: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxWidth: "86%",
-  },
   composerOuter: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
-  },
-  composerCard: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  composerToggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  toggleGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  toggleText: {
-    fontSize: FontSize.xs,
-  },
-  composerRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: Spacing.sm,
-  },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
   },
 })

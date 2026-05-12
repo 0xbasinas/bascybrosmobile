@@ -4,11 +4,10 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
-import { AppTextInput } from "@/components/ui/input"
+import { NoteFields } from "@/components/notes/note-fields"
 import { MarkdownView } from "@/components/markdown"
 import { EmptyState } from "@/components/ui/empty"
-import { LoadingScreen, PageField, PageScrollView, PageSection } from "@/components/ui/page"
-import { TabHero } from "@/components/ui/tab-hero"
+import { LoadingScreen, PageScrollView, PageSection } from "@/components/ui/page"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
@@ -108,25 +107,10 @@ export default function NoteDetailScreen() {
 
   return (
     <PageScrollView keyboardAvoiding>
-      <TabHero
-        icon={editing ? "create-outline" : "document-text-outline"}
-        eyebrow={editing ? "Editing note" : "Saved note"}
-        description={editing ? "Update the title, tags, or markdown content." : note.title}
-        stats={[
-          { label: "Updated", value: formatDate(note.updatedAt) },
-          {
-            label: "Tags",
-            value: note.tags
-              ? String(note.tags.split(",").map((tag) => tag.trim()).filter(Boolean).length)
-              : "0",
-          },
-        ]}
-      />
       {editing ? (
         <PageSection
           title="Make changes"
           description="Refine the structure first, then update the markdown body."
-          contentStyle={styles.sectionContent}
           footer={
             <>
               <AppButton
@@ -150,24 +134,22 @@ export default function NoteDetailScreen() {
           }
           footerStyle={styles.footer}
         >
-          <PageField label="Title" description="Keep the note name concise and recognizable.">
-            <AppTextInput value={title} onChangeText={setTitle} maxLength={200} />
-          </PageField>
-          <PageField label="Tags" description="Comma-separated tags power note filtering.">
-            <AppTextInput value={tags} onChangeText={setTags} autoCapitalize="none" />
-          </PageField>
-          <PageField label="Content" description="Markdown changes save directly back to this note.">
-            <AppTextInput
-              multiline
-              value={content}
-              onChangeText={setContent}
-              style={styles.editor}
-            />
-          </PageField>
+          <NoteFields
+            title={title}
+            tags={tags}
+            content={content}
+            onTitleChange={setTitle}
+            onTagsChange={setTags}
+            onContentChange={setContent}
+            contentMinHeight={360}
+            titleDescription="Keep the note name concise and recognizable."
+            tagsDescription="Comma-separated tags power note filtering."
+            contentDescription="Markdown changes save directly back to this note."
+          />
         </PageSection>
       ) : (
         <PageSection
-          title="Markdown content"
+          title={note.title}
           description={note.tags ? `Tags: ${note.tags}` : "No tags added yet."}
           contentStyle={styles.sectionContent}
           footer={
@@ -209,8 +191,5 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "column",
     gap: Spacing.sm,
-  },
-  editor: {
-    minHeight: 320,
   },
 })

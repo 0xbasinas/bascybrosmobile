@@ -22,7 +22,7 @@ export function Segmented<T extends string>({
       style={[
         styles.container,
         {
-          backgroundColor: palette.surface,
+          backgroundColor: palette.surfaceMuted,
           borderColor: palette.border,
         },
       ]}
@@ -37,8 +37,10 @@ export function Segmented<T extends string>({
             onPress={() => onChange(opt.value)}
             style={({ pressed }) => [
               styles.segment,
-              active ? { backgroundColor: palette.primary } : { backgroundColor: "transparent" },
-              pressed ? { opacity: 0.88 } : null,
+              {
+                backgroundColor: active ? palette.primary : palette.surface,
+                opacity: pressed ? 0.94 : 1,
+              },
             ]}
           >
             <Text
@@ -47,6 +49,7 @@ export function Segmented<T extends string>({
                 styles.label,
                 {
                   color: active ? palette.primaryText : palette.text,
+                  flexShrink: 0,
                 },
               ]}
             >
@@ -63,27 +66,27 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: Spacing.xs,
-    gap: Spacing.xs,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
   },
   segment: {
     flex: 1,
     flexBasis: 0,
     minWidth: 0,
-    minHeight: 40,
+    minHeight: 48,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
   },
   label: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.md,
     fontWeight: "600",
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 22,
     includeFontPadding: false,
   },
 })

@@ -18,6 +18,11 @@ on:
         required: false
         default: false
         type: boolean
+      universal_apk:
+        description: "Build all CPU ABIs (slower). Tag pushes always build universal APKs."
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - "v*"
@@ -42,10 +47,13 @@ jobs:
       ANDROID_SDK_COMPONENTS: "platform-tools+build-tools+platforms"
       CI: "true"
     steps:
+      # Tag builds need full history/tags for "previous tag" diff; manual runs use a shallow clone.
+      # Use string '0' so GitHub's expression engine does not treat numeric 0 as falsy (which would fall through to depth 50).
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'push' && github.ref_type == 'tag' && '0' || '50' }}
+          fetch-tags: true
 
       - name: Initialize timing metrics
         run: |
@@ -56,34 +64,7 @@ jobs:
           echo "EAS_BUILD_SECONDS=0" >> "$GITHUB_ENV"
           echo "EAS_BUILD_STATUS=not-run" >> "$GITHUB_ENV"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      # Gradle + AGP download platforms/NDK/build-tools into the SDK; caching avoids multi-minute cold downloads.
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.android/sdk
-            ~/.android/cache
-          key: android-sdk-${{ runner.os }}-${{ env.ANDROID_SDK_COMPONENTS }}-v2
-          restore-keys: |
-            android-sdk-${{ runner.os }}-${{ env.ANDROID_SDK_COMPONENTS }}-
-            android-sdk-${{ runner.os }}-
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
+      # Runs before Node/Java/Android SDK so skips avoid minutes of SDK setup.
       - name: Detect mobile-impacting and prebuild-impacting changes
         id: changes
         shell: bash
@@ -177,13 +158,37 @@ jobs:
         run: |
           echo "Skipping release APK build because no mobile-impacting files changed."
 
-      - name: Install dependencies
+      - name: Setup Node.js
         if: steps.changes.outputs.should_build == 'true'
-        run: |
-          START_TS=$(date +%s)
-          npm ci --legacy-peer-deps --prefer-offline --no-audit
-          END_TS=$(date +%s)
-          echo "INSTALL_SECONDS=$((END_TS - START_TS))" >> "$GITHUB_ENV"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java
+        if: steps.changes.outputs.should_build == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Gradle + AGP download platforms/NDK/build-tools into the SDK; caching avoids multi-minute cold downloads.
+      - name: Cache Android SDK
+        if: steps.changes.outputs.should_build == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/sdk
+            ~/.android/cache
+          key: android-sdk-${{ runner.os }}-${{ env.ANDROID_SDK_COMPONENTS }}-v2
+          restore-keys: |
+            android-sdk-${{ runner.os }}-${{ env.ANDROID_SDK_COMPONENTS }}-
+            android-sdk-${{ runner.os }}-
+
+      - name: Setup Android SDK
+        if: steps.changes.outputs.should_build == 'true'
+        uses: android-actions/setup-android@v3
 
       - name: Validate build-time app env
         if: steps.changes.outputs.should_build == 'true'
@@ -193,6 +198,14 @@ jobs:
             echo "Set both in GitHub repository secrets for release builds."
             exit 1
           fi
+
+      - name: Install dependencies
+        if: steps.changes.outputs.should_build == 'true'
+        run: |
+          START_TS=$(date +%s)
+          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
+          END_TS=$(date +%s)
+          echo "INSTALL_SECONDS=$((END_TS - START_TS))" >> "$GITHUB_ENV"
 
       - name: Generate Android project
         if: steps.changes.outputs.should_build == 'true' && steps.changes.outputs.should_prebuild == 'true'
@@ -231,7 +244,8 @@ jobs:
         if: steps.changes.outputs.should_build == 'true'
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') }}
+          # Allow cache writes on main, release/* branches, and version tags (release APK runs).
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) }}
           cache-cleanup: on-success
 
       - name: Decode Android keystore
@@ -247,7 +261,7 @@ jobs:
       - name: Configure Gradle signing and CI tuning
         if: steps.changes.outputs.should_build == 'true'
         run: |
-          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d' android/gradle.properties || true
+          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d;/^org.gradle.vfs.watch=/d;/^kotlin.incremental=/d' android/gradle.properties || true
           {
             echo "MYAPP_UPLOAD_STORE_FILE=app/keystores/release.keystore"
             echo "MYAPP_UPLOAD_KEY_ALIAS=$ANDROID_KEY_ALIAS"
@@ -258,6 +272,8 @@ jobs:
             echo "org.gradle.caching=true"
             echo "org.gradle.configuration-cache=true"
             echo "org.gradle.configuration-cache.problems=warn"
+            echo "org.gradle.vfs.watch=false"
+            echo "kotlin.incremental=true"
           } >> android/gradle.properties
 
       - name: Build release APK
@@ -267,7 +283,15 @@ jobs:
         run: |
           START_TS=$(date +%s)
           cd android
-          GRADLE_TASKS="assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease"
+          # Manual runs default to arm64-only for faster CI; tag pushes and universal_apk build all ABIs.
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            RN_ARCHS="armeabi-v7a,arm64-v8a,x86,x86_64"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.universal_apk }}" = "true" ]; then
+            RN_ARCHS="armeabi-v7a,arm64-v8a,x86,x86_64"
+          else
+            RN_ARCHS="arm64-v8a"
+          fi
+          GRADLE_TASKS="assembleRelease --parallel --build-cache -x lint -x lintVitalRelease -x lintVitalAnalyzeRelease -PreactNativeArchitectures=$RN_ARCHS"
           if [ "$PUBLISH_BUILD_SCAN" = "true" ]; then
             ./gradlew $GRADLE_TASKS --scan -Dscan.termsOfServiceUrl=https://gradle.com/terms-of-service -Dscan.termsOfServiceAgree=yes
           else

@@ -54,6 +54,7 @@ export default function RootLayout() {
               <Stack.Screen name="reset-password" options={{ headerShown: false }} />
               <Stack.Screen name="oauth-callback" options={{ headerShown: false }} />
               <Stack.Screen name="share-inbox" options={{ headerShown: false }} />
+              <Stack.Screen name="manage-account" options={{ title: "Account", presentation: "modal" }} />
               <Stack.Screen
                 name="unauthorized"
                 options={{ headerShown: false, presentation: "modal" }}

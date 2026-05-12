@@ -261,19 +261,25 @@ jobs:
       - name: Configure Gradle signing and CI tuning
         if: steps.changes.outputs.should_build == 'true'
         run: |
-          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d;/^org.gradle.vfs.watch=/d;/^kotlin.incremental=/d' android/gradle.properties || true
+          # Strip prior CI injections and replace daemon heap — repo defaults org.gradle.jvmargs=-Xmx2048m,
+          # which caps the Gradle daemon while GRADLE_OPTS uses 6g; universal APK + R8 needs the larger heap.
+          sed -i '/^MYAPP_UPLOAD_/d;/^android.packagingOptions.pickFirsts=/d;/^org.gradle.parallel=/d;/^org.gradle.caching=/d;/^org.gradle.configuration-cache=/d;/^org.gradle.configuration-cache.problems=/d;/^org.gradle.vfs.watch=/d;/^kotlin.incremental=/d;/^org.gradle.jvmargs=/d;/^org.gradle.workers.max=/d;/^kotlin.compiler.execution.strategy=/d;/^android.enablePngCrunchInReleaseBuilds=/d' android/gradle.properties || true
           {
             echo "MYAPP_UPLOAD_STORE_FILE=app/keystores/release.keystore"
             echo "MYAPP_UPLOAD_KEY_ALIAS=$ANDROID_KEY_ALIAS"
             echo "MYAPP_UPLOAD_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
             echo "MYAPP_UPLOAD_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
             echo "android.packagingOptions.pickFirsts=META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            echo "org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
             echo "org.gradle.parallel=true"
+            echo "org.gradle.workers.max=$(nproc)"
             echo "org.gradle.caching=true"
             echo "org.gradle.configuration-cache=true"
             echo "org.gradle.configuration-cache.problems=warn"
             echo "org.gradle.vfs.watch=false"
             echo "kotlin.incremental=true"
+            echo "kotlin.compiler.execution.strategy=in-process"
+            echo "android.enablePngCrunchInReleaseBuilds=false"
           } >> android/gradle.properties
 
       - name: Build release APK

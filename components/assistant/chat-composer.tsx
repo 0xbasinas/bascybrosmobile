@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
-import { Pressable, StyleSheet, Switch, View } from "react-native"
+import { Pressable, StyleSheet, Switch, View, Platform, useColorScheme } from "react-native"
 
 import { AppTextInput } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
@@ -23,11 +23,24 @@ export function ChatComposer({
   onStop: () => void
 }) {
   const palette = usePalette()
+  const colorScheme = useColorScheme()
+  const canSend = !streaming && Boolean(prompt.trim())
+
+  const cardShadow =
+    Platform.OS === "ios"
+      ? {
+          shadowColor: palette.text,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: colorScheme === "dark" ? 0.35 : 0.12,
+          shadowRadius: 10,
+        }
+      : { elevation: 4 }
 
   return (
     <View
       style={[
         styles.card,
+        cardShadow,
         {
           backgroundColor: palette.surface,
           borderColor: palette.border,
@@ -36,7 +49,14 @@ export function ChatComposer({
     >
       <View style={styles.toggleRow}>
         <View style={styles.toggleGroup}>
-          <Switch value={webSearch} onValueChange={onToggleWebSearch} />
+          <Switch
+            value={webSearch}
+            onValueChange={onToggleWebSearch}
+            disabled={streaming}
+            trackColor={{ false: palette.surfaceMuted, true: palette.primary }}
+            thumbColor={Platform.OS === "android" ? (webSearch ? palette.primaryText : palette.surface) : undefined}
+            ios_backgroundColor={palette.surfaceMuted}
+          />
           <Text variant="muted" selectable style={styles.toggleText}>
             Web search
           </Text>
@@ -44,12 +64,14 @@ export function ChatComposer({
         {streaming ? (
           <Pressable
             onPress={onStop}
-            hitSlop={6}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Stop generating"
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
           >
             <Text
               selectable
-              style={{ color: palette.danger, fontSize: FontSize.xs, fontWeight: "600" }}
+              style={{ color: palette.danger, fontSize: FontSize.sm, fontWeight: "600" }}
             >
               Stop
             </Text>
@@ -59,30 +81,33 @@ export function ChatComposer({
 
       <View style={styles.row}>
         <AppTextInput
-          placeholder="Message the assistant..."
+          placeholder="Message the assistant…"
           value={prompt}
           onChangeText={onPromptChange}
           multiline
           style={styles.input}
           editable={!streaming}
+          accessibilityLabel="Message input"
         />
         <Pressable
           onPress={onSend}
-          disabled={streaming || !prompt.trim()}
-          hitSlop={6}
+          disabled={!canSend}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          accessibilityState={{ disabled: !canSend }}
           style={({ pressed }) => [
             styles.sendButton,
             {
-              backgroundColor:
-                streaming || !prompt.trim() ? palette.surfaceMuted : palette.primary,
-              opacity: pressed ? 0.85 : 1,
+              backgroundColor: canSend ? palette.primary : palette.surfaceMuted,
+              opacity: pressed && canSend ? 0.88 : 1,
             },
           ]}
         >
           <Ionicons
             name="arrow-up"
-            size={20}
-            color={streaming || !prompt.trim() ? palette.textMuted : palette.primaryText}
+            size={22}
+            color={canSend ? palette.primaryText : palette.textMuted}
           />
         </Pressable>
       </View>
@@ -95,8 +120,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: Radius.xl,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
   },
   toggleRow: {
     flexDirection: "row",
@@ -107,9 +132,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
+    flex: 1,
+    flexShrink: 1,
   },
   toggleText: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
+    flexShrink: 1,
   },
   row: {
     flexDirection: "row",
@@ -118,15 +146,16 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 48,
-    maxHeight: 140,
+    minHeight: 52,
+    maxHeight: 160,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
     textAlignVertical: "top",
+    fontSize: FontSize.md,
   },
   sendButton: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",

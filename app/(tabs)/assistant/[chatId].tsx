@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import {
   Alert,
+  FlatList,
   KeyboardAvoidingView,
-  ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -22,6 +23,7 @@ import type { AssistantChat, AssistantMessage } from "@/lib/types"
 export default function AssistantChatScreen() {
   const palette = usePalette()
   const insets = useSafeAreaInsets()
+  const { height: windowHeight } = useWindowDimensions()
   const params = useLocalSearchParams<{ chatId: string }>()
   const chatId = String(params.chatId ?? "")
   const { request, requestJson } = useApi()
@@ -31,7 +33,7 @@ export default function AssistantChatScreen() {
   const [webSearch, setWebSearch] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([])
-  const scrollRef = useRef<ScrollView | null>(null)
+  const listRef = useRef<FlatList<LiveMessage>>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const query = useQuery<
@@ -42,6 +44,10 @@ export default function AssistantChatScreen() {
     enabled: !!chatId,
     queryFn: () => requestJson(`/api/assistant/chats/${chatId}`),
   })
+
+  useEffect(() => {
+    setLiveMessages([])
+  }, [chatId])
 
   useEffect(() => {
     if (query.data?.messages) {
@@ -55,11 +61,15 @@ export default function AssistantChatScreen() {
     }
   }, [])
 
+  function scrollToEnd(animated: boolean) {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated })
+    })
+  }
+
   function appendLocalMessage(message: LiveMessage) {
     setLiveMessages((prev) => [...prev, message])
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true })
-    })
+    scrollToEnd(true)
   }
 
   function updatePending(updater: (current: LiveMessage) => LiveMessage) {
@@ -179,49 +189,63 @@ export default function AssistantChatScreen() {
     }))
   }
 
+  const emptyMinHeight = Math.min(windowHeight * 0.5, 420)
+
+  const listEmpty = (
+    <View style={[styles.emptyWrap, { minHeight: emptyMinHeight }]}>
+      {query.isLoading ? (
+        <LoadingState label="Loading conversation..." style={styles.loading} />
+      ) : query.error ? (
+        <PageSection title="Couldn't load chat" contentStyle={styles.noticeContent}>
+          <Text selectable style={{ color: palette.danger }}>
+            {query.error.message}
+          </Text>
+        </PageSection>
+      ) : (
+        <PageSection
+          title="Start the conversation"
+          description="Ask the assistant about your notes, tasks, CTFs, or anything else."
+          contentStyle={styles.noticeContent}
+        >
+          <Text variant="muted" selectable>
+            Turn on web search when you want live web results mixed into the answer.
+          </Text>
+        </PageSection>
+      )}
+    </View>
+  )
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: palette.background }}
       behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={process.env.EXPO_OS === "ios" ? 80 : 0}
     >
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={styles.transcript}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-        contentInsetAdjustmentBehavior="automatic"
+      <FlatList
+        ref={listRef}
+        style={styles.list}
+        data={liveMessages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <ChatMessageBubble message={item} />}
+        ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+        ListEmptyComponent={listEmpty}
+        ListFooterComponent={<View style={{ height: Spacing.sm }} />}
+        contentContainerStyle={[
+          styles.transcript,
+          liveMessages.length === 0 ? styles.transcriptEmpty : null,
+        ]}
+        onContentSizeChange={() => scrollToEnd(false)}
         keyboardShouldPersistTaps="handled"
-      >
-        {query.isLoading ? (
-          <LoadingState label="Loading conversation..." style={styles.loading} />
-        ) : query.error ? (
-          <PageSection title="Couldn't load chat" contentStyle={styles.noticeContent}>
-            <Text selectable style={{ color: palette.danger }}>
-              {query.error.message}
-            </Text>
-          </PageSection>
-        ) : liveMessages.length === 0 ? (
-          <PageSection
-            title="Start the conversation"
-            description="Ask the assistant about your notes, tasks, CTFs, or anything else."
-            contentStyle={styles.noticeContent}
-          >
-            <Text variant="muted" selectable>
-              Turn on web search when you want live web results mixed into the answer.
-            </Text>
-          </PageSection>
-        ) : (
-          liveMessages.map((msg) => (
-            <ChatMessageBubble key={msg.id} message={msg} />
-          ))
-        )}
-      </ScrollView>
+        keyboardDismissMode={process.env.EXPO_OS === "ios" ? "interactive" : "on-drag"}
+        contentInsetAdjustmentBehavior="automatic"
+      />
 
       <View
         style={[
           styles.composerOuter,
           {
             backgroundColor: palette.background,
+            borderTopColor: palette.border,
             paddingBottom: Math.max(insets.bottom, Spacing.sm),
           },
         ]}
@@ -241,10 +265,20 @@ export default function AssistantChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+  },
   transcript: {
-    padding: Spacing.lg,
-    gap: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.xl,
+  },
+  transcriptEmpty: {
+    flexGrow: 1,
+  },
+  emptyWrap: {
+    flexGrow: 1,
+    justifyContent: "center",
   },
   loading: { padding: Spacing.xl, alignItems: "center" },
   noticeContent: {
@@ -252,6 +286,7 @@ const styles = StyleSheet.create({
   },
   composerOuter: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 })

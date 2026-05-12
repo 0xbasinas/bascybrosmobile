@@ -1,31 +1,20 @@
 import {
   Alert,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   View,
 } from "react-native"
-import { Link, useRouter } from "expo-router"
-import { Ionicons } from "@expo/vector-icons"
+import { useRouter } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
+import { ChatRow } from "@/components/assistant/chat-row"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
-import { TabHero } from "@/components/ui/tab-hero"
-import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat } from "@/lib/types"
-
-function formatDate(unix: number) {
-  const date = new Date(unix * 1000)
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })
-}
 
 export default function AssistantListScreen() {
   const palette = usePalette()
@@ -65,19 +54,14 @@ export default function AssistantListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={styles.topPadding}>
-        <TabHero
-          icon="sparkles-outline"
-          eyebrow="Workspace AI"
-          description="Keep ongoing chats about notes, tasks, and your broader workspace."
-          stats={[{ label: "Conversations", value: String(chats.length) }]}
-        >
+        <PageSection contentStyle={styles.headerCard}>
           <AppButton
             title="New chat"
             loading={create.isPending}
             onPress={() => create.mutate()}
             fullWidth
           />
-        </TabHero>
+        </PageSection>
       </View>
 
       {query.isLoading ? (
@@ -134,53 +118,6 @@ export default function AssistantListScreen() {
   )
 }
 
-function ChatRow({
-  chat,
-  onDelete,
-}: {
-  chat: AssistantChat
-  onDelete: () => void
-}) {
-  const palette = usePalette()
-  return (
-    <PageSection contentStyle={styles.rowContent}>
-      <View style={styles.row}>
-        <View
-          style={[
-            styles.rowIcon,
-            {
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <Ionicons name="sparkles-outline" size={16} color={palette.text} />
-        </View>
-        <Link
-          href={{ pathname: "/(tabs)/assistant/[chatId]", params: { chatId: chat.id } }}
-          asChild
-        >
-          <Pressable style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.92 : 1 }]}>
-            <Text style={styles.rowTitle} numberOfLines={1}>
-              {chat.title}
-            </Text>
-            <Text variant="muted" selectable style={styles.rowMeta}>
-              Updated {formatDate(chat.updatedAt)}
-            </Text>
-          </Pressable>
-        </Link>
-        <Pressable
-          hitSlop={6}
-          onPress={onDelete}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 6 })}
-        >
-          <Ionicons name="trash-outline" size={18} color={palette.danger} />
-        </Pressable>
-      </View>
-    </PageSection>
-  )
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topPadding: {
@@ -196,32 +133,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stateCard: { minHeight: 220 },
+  headerCard: {
+    gap: Spacing.sm,
+  },
   listContent: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xxl,
-  },
-  rowContent: {
-    padding: Spacing.lg,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowTitle: {
-    fontSize: FontSize.md,
-    fontWeight: "600",
-  },
-  rowMeta: {
-    marginTop: 4,
   },
 })

@@ -2,34 +2,23 @@ import { useState } from "react"
 import {
   Alert,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native"
-import { Image } from "expo-image"
-import { Ionicons } from "@expo/vector-icons"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { AppButton } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingState, PageSection } from "@/components/ui/page"
-import { TabHero } from "@/components/ui/tab-hero"
-import { Text } from "@/components/ui/text"
+import { UploadTile } from "@/components/uploads/upload-tile"
+import { UploadsActions } from "@/components/uploads/uploads-actions"
 import { useApi, HttpError } from "@/lib/api"
 import { useUploadImage, type PickedImage } from "@/lib/hooks/useUploadImage"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { Spacing, usePalette } from "@/lib/theme"
 import type { UploadedFile } from "@/lib/types"
-import { safeOpenUrl } from "@/lib/safe-open-url"
 
 const COLUMNS = 2
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 export default function UploadsScreen() {
   const palette = usePalette()
@@ -88,36 +77,11 @@ export default function UploadsScreen() {
   }
 
   const files = query.data?.files ?? []
-  const totalSize = files.reduce((sum, file) => sum + file.size, 0)
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={styles.topPadding}>
-        <TabHero
-          icon="cloud-upload-outline"
-          eyebrow="Capture board"
-          description="Capture screenshots or photos, then reopen them from your mobile workspace."
-          stats={[
-            { label: "Files", value: String(files.length) },
-            { label: "Storage", value: formatSize(totalSize) },
-          ]}
-        >
-          <View style={styles.actionStack}>
-            <AppButton
-              title="Take photo"
-              onPress={handleCamera}
-              loading={busy}
-              fullWidth
-            />
-            <AppButton
-              title="From library"
-              variant="secondary"
-              onPress={handleLibrary}
-              loading={busy}
-              fullWidth
-            />
-          </View>
-        </TabHero>
+        <UploadsActions busy={busy} onCamera={handleCamera} onLibrary={handleLibrary} />
       </View>
 
       {query.isLoading ? (
@@ -156,7 +120,7 @@ export default function UploadsScreen() {
             />
           }
           renderItem={({ item }) => (
-            <Tile
+            <UploadTile
               file={item}
               tileWidth={tileWidth}
               onDelete={() =>
@@ -177,59 +141,11 @@ export default function UploadsScreen() {
   )
 }
 
-function Tile({
-  file,
-  tileWidth,
-  onDelete,
-}: {
-  file: UploadedFile
-  tileWidth: number
-  onDelete: () => void
-}) {
-  const palette = usePalette()
-  return (
-    <Pressable
-      onPress={() => {
-        void safeOpenUrl(file.url)
-      }}
-      style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }, { width: tileWidth }]}
-    >
-      <PageSection style={styles.tileCard} contentStyle={styles.tileContent}>
-        <Image
-          source={{ uri: file.url }}
-          style={{ width: "100%", height: tileWidth, backgroundColor: palette.surfaceMuted }}
-          contentFit="cover"
-        />
-        <View style={styles.tileMeta}>
-          <Text style={styles.tileTitle} numberOfLines={1}>
-            {file.filename}
-          </Text>
-          <View style={styles.metaRow}>
-            <Text variant="muted" selectable>
-              {formatSize(file.size)}
-            </Text>
-            <Pressable
-              hitSlop={6}
-              onPress={onDelete}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <Ionicons name="trash-outline" size={16} color={palette.danger} />
-            </Pressable>
-          </View>
-        </View>
-      </PageSection>
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topPadding: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-  },
-  actionStack: {
-    gap: Spacing.sm,
   },
   statePadding: {
     flex: 1,
@@ -244,25 +160,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xxl,
-  },
-  tileCard: {
-    overflow: "hidden",
-  },
-  tileContent: {
-    gap: 0,
-    padding: 0,
-  },
-  tileMeta: {
-    padding: Spacing.md,
-    gap: Spacing.xs,
-  },
-  tileTitle: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
   },
 })

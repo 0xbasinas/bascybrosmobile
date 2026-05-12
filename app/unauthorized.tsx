@@ -4,7 +4,6 @@ import { StyleSheet } from "react-native"
 
 import { AppButton } from "@/components/ui/button"
 import { PageScrollView, PageSection } from "@/components/ui/page"
-import { TabHero } from "@/components/ui/tab-hero"
 import { Spacing } from "@/lib/theme"
 
 export default function UnauthorizedScreen() {
@@ -21,14 +20,9 @@ export default function UnauthorizedScreen() {
 
   return (
     <PageScrollView contentContainerStyle={styles.content}>
-      <TabHero
-        icon="lock-closed-outline"
-        eyebrow="Access restricted"
-        description="This account is signed in, but its email is not on the BascyBros allowlist yet."
-      />
       <PageSection
-        title="What to do next"
-        description="Ask an admin to add your email address, then sign in again to continue."
+        title="Access restricted"
+        description="This account is signed in, but its email is not on the BascyBros allowlist yet. Ask an admin to add your email address, then sign in again."
         contentStyle={styles.sectionContent}
         footerStyle={styles.footer}
       >

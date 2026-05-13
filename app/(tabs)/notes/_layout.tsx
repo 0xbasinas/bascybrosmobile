@@ -1,6 +1,5 @@
 import { Stack } from "expo-router"
 
-import { UserMenu } from "@/components/user-menu"
 import { usePalette } from "@/lib/theme"
 
 export default function NotesStackLayout() {
@@ -19,16 +18,10 @@ export default function NotesStackLayout() {
         contentStyle: { backgroundColor: palette.background },
       }}
     >
-      <Stack.Screen
-        name="index"
-        options={{
-          title: "Notes",
-          headerRight: () => <UserMenu />,
-        }}
-      />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="new"
-        options={{ title: "New note", presentation: "modal", headerLargeTitle: false }}
+        options={{ title: "New note", presentation: "card", headerLargeTitle: false }}
       />
       <Stack.Screen name="[id]" options={{ title: "Note", headerLargeTitle: false }} />
     </Stack>

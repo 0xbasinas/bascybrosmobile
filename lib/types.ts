@@ -1,3 +1,5 @@
+export type NoteKind = "text" | "checklist"
+
 export type Note = {
   id: string
   userId: string
@@ -6,7 +8,11 @@ export type Note = {
   tags: string
   createdAt: number
   updatedAt: number
+  /** Optional; used for list affordances. Can be inferred from markdown when absent. */
+  kind?: NoteKind
 }
+
+export type TaskPriority = "low" | "medium" | "high"
 
 export type Task = {
   id: string
@@ -18,6 +24,10 @@ export type Task = {
   relatedEntityId: string | null
   createdAt: number
   updatedAt: number
+  /** Optional due date (unix seconds). When omitted, the task is grouped as anytime. */
+  dueAt?: number | null
+  /** Optional priority hint for the list row. */
+  priority?: TaskPriority | null
 }
 
 export type UploadedFile = {

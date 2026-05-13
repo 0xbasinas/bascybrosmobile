@@ -1,3 +1,4 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useEffect, useState } from "react"
 import { Alert, StyleSheet } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -13,6 +14,13 @@ import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
 import type { Note } from "@/lib/types"
 
+function splitTags(value: string): string[] {
+  return value
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+}
+
 function formatDate(unix: number) {
   const date = new Date(unix * 1000)
   return date.toLocaleDateString(undefined, {
@@ -23,6 +31,7 @@ function formatDate(unix: number) {
 }
 
 export default function NoteDetailScreen() {
+  const headerHeight = useHeaderHeight()
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()
   const id = String(params.id ?? "")
@@ -106,7 +115,7 @@ export default function NoteDetailScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding>
+    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
       {editing ? (
         <PageSection
           title="Make changes"
@@ -150,7 +159,13 @@ export default function NoteDetailScreen() {
       ) : (
         <PageSection
           title={note.title}
-          description={note.tags ? `Tags: ${note.tags}` : "No tags added yet."}
+          description={
+            note.tags
+              ? splitTags(note.tags)
+                  .map((t) => `#${t}`)
+                  .join(" · ")
+              : "No tags yet."
+          }
           contentStyle={styles.sectionContent}
           footer={
             <>

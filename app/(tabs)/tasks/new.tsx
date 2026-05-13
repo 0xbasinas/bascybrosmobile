@@ -1,3 +1,4 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useState } from "react"
 import { Alert } from "react-native"
 import { useRouter } from "expo-router"
@@ -11,6 +12,7 @@ import { Spacing } from "@/lib/theme"
 import { type TaskStatus } from "@/lib/types"
 
 export default function NewTaskScreen() {
+  const headerHeight = useHeaderHeight()
   const router = useRouter()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
@@ -45,7 +47,7 @@ export default function NewTaskScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding>
+    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
       <PageSection
         title="Set up the task"
         description="Keep the title scannable and add supporting notes only where they help."

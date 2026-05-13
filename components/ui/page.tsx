@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -33,7 +34,7 @@ export function PageScrollView({
   children,
   padded = true,
   keyboardAvoiding = false,
-  keyboardVerticalOffset = 0,
+  keyboardVerticalOffset,
   contentContainerStyle,
   keyboardShouldPersistTaps,
   style,
@@ -66,11 +67,18 @@ export function PageScrollView({
     return scrollView
   }
 
+  const resolvedKeyboardOffset =
+    keyboardVerticalOffset !== undefined
+      ? keyboardVerticalOffset
+      : Platform.OS === "ios"
+        ? Math.max(insets.top, 12)
+        : 0
+
   return (
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: palette.background }]}
-      behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={keyboardVerticalOffset}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={resolvedKeyboardOffset}
     >
       {scrollView}
     </KeyboardAvoidingView>

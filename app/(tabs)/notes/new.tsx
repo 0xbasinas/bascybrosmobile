@@ -1,3 +1,4 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useState } from "react"
 import { Alert } from "react-native"
 import { useRouter } from "expo-router"
@@ -10,6 +11,7 @@ import { Spacing } from "@/lib/theme"
 import { PageScrollView, PageSection } from "@/components/ui/page"
 
 export default function NewNoteScreen() {
+  const headerHeight = useHeaderHeight()
   const router = useRouter()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
@@ -40,7 +42,7 @@ export default function NewNoteScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding>
+    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
       <PageSection
         title="Write your note"
         description="Add the structure first, then drop in as much markdown detail as you need."

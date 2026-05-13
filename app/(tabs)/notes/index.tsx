@@ -6,7 +6,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,9 +16,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { NoteRow } from "@/components/notes/note-row"
 import { UserMenu } from "@/components/user-menu"
+import { LoadingState } from "@/components/ui/page"
 import { useApi, HttpError } from "@/lib/api"
-import { MOCK_NOTES } from "@/lib/mock-productivity-data"
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Radius, Spacing, usePalette, type ThemePalette } from "@/lib/theme"
 import type { Note } from "@/lib/types"
 
 function splitTags(value: string): string[] {
@@ -33,8 +32,7 @@ const TOUCH = 44
 const TAB_BAR_OFFSET = 58
 
 /**
- * Single-column list: previews stay readable, touch targets stay large, and rhythm
- * matches calm notebook apps (Bear-style) better than a grid on narrow phones.
+ * Single-column list: previews stay readable and tap targets stay large on phone widths.
  */
 export default function NotesListScreen() {
   const palette = usePalette()
@@ -55,7 +53,6 @@ export default function NotesListScreen() {
       const qs = params.toString()
       return requestJson(`/api/mobile/notes${qs ? `?${qs}` : ""}`)
     },
-    placeholderData: () => ({ ok: true, notes: MOCK_NOTES }),
   })
 
   const notes = useMemo(() => query.data?.notes ?? [], [query.data?.notes])
@@ -81,8 +78,11 @@ export default function NotesListScreen() {
 
   const bottomPad = TAB_BAR_OFFSET + Math.max(insets.bottom, Spacing.md) + Spacing.xl
 
-  const showWarmEmpty = !query.error && filteredLocal.length === 0 && !search.trim()
-  const showSearchEmpty = filteredLocal.length === 0 && search.trim().length > 0
+  const showInitialLoading = query.isLoading && !query.data
+  const showWarmEmpty =
+    !query.isError && !showInitialLoading && filteredLocal.length === 0 && !search.trim()
+  const showSearchEmpty =
+    !showInitialLoading && filteredLocal.length === 0 && search.trim().length > 0
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -97,7 +97,7 @@ export default function NotesListScreen() {
         <Pressable
           onPress={() => router.push("/(tabs)/notes/new")}
           style={({ pressed }) => [
-            styles.newIconButton,
+            styles.headerIconButton,
             { opacity: pressed ? 0.65 : 1, minWidth: TOUCH, minHeight: TOUCH },
           ]}
           accessibilityRole="button"
@@ -129,119 +129,134 @@ export default function NotesListScreen() {
         </View>
 
         {allTags.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tagScroll}
-          >
-            <TagPill
-              label="All"
-              active={tag === null}
-              onPress={() => setTag(null)}
-              palette={palette}
-            />
-            {allTags.map((t) => (
-              <TagPill
-                key={t}
-                label={t}
-                active={tag === t}
-                onPress={() => setTag(tag === t ? null : t)}
+          <View style={styles.tagSection}>
+            <Text style={[styles.tagSectionLabel, { color: palette.textMuted }]}>Filter by tag</Text>
+            <View style={styles.tagWrap}>
+              <TagChip
+                display="All notes"
+                value={null}
+                selected={tag === null}
+                onSelect={() => setTag(null)}
                 palette={palette}
               />
-            ))}
-          </ScrollView>
+              {allTags.map((t) => (
+                <TagChip
+                  key={t}
+                  display={`#${t}`}
+                  value={t}
+                  selected={tag === t}
+                  onSelect={() => setTag(tag === t ? null : t)}
+                  palette={palette}
+                />
+              ))}
+            </View>
+          </View>
         ) : null}
       </View>
 
-      {query.error ? (
-        <View style={styles.centerBlock}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>Couldn’t load notes</Text>
-          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>{query.error.message}</Text>
-        </View>
-      ) : showWarmEmpty ? (
-        <View style={[styles.centerBlock, { paddingHorizontal: Spacing.xl }]}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>Your space</Text>
-          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-            Capture a thought in a sentence or a page. Start with the plus above — no sheet, no
-            friction.
-          </Text>
-        </View>
-      ) : showSearchEmpty ? (
-        <View style={styles.centerBlock}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>Nothing for that search</Text>
-          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-            Loosen the query or clear the field to see everything again.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredLocal}
-          keyExtractor={(item) => item.id}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={query.isRefetching && !query.isLoading}
-              onRefresh={() => query.refetch()}
-              tintColor={palette.text}
-            />
-          }
-          ListHeaderComponent={
-            <Pressable
-              onPress={() => router.push("/(tabs)/notes/new")}
-              style={({ pressed }) => [
-                styles.newNoteRow,
-                { borderColor: palette.border, opacity: pressed ? 0.75 : 1 },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Create new note"
-            >
-              <Ionicons name="create-outline" size={20} color={palette.textMuted} />
-              <Text style={[styles.newNoteLabel, { color: palette.text }]}>New note</Text>
-              <View style={{ flex: 1 }} />
-              <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
-            </Pressable>
-          }
-          renderItem={({ item }) => <NoteRow note={item} />}
-        />
-      )}
+      <View style={styles.body}>
+        {query.isError ? (
+          <View style={styles.centerBlock}>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>Couldn’t load notes</Text>
+            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+              {query.error.message}
+            </Text>
+          </View>
+        ) : showInitialLoading ? (
+          <View style={styles.centerBlock}>
+            <LoadingState label="Loading notes..." />
+          </View>
+        ) : showWarmEmpty ? (
+          <View style={[styles.centerBlock, { paddingHorizontal: Spacing.xl }]}>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>Your space</Text>
+            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+              Capture a thought in a sentence or a page. Tap the plus when you are ready.
+            </Text>
+          </View>
+        ) : showSearchEmpty ? (
+          <View style={styles.centerBlock}>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>Nothing for that search</Text>
+            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+              Loosen the query or clear the field to see everything again.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredLocal}
+            keyExtractor={(item) => item.id}
+            style={styles.flexList}
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
+            refreshControl={
+              <RefreshControl
+                refreshing={query.isRefetching && !query.isLoading}
+                onRefresh={() => query.refetch()}
+                tintColor={palette.text}
+              />
+            }
+            ListHeaderComponent={
+              <Pressable
+                onPress={() => router.push("/(tabs)/notes/new")}
+                style={({ pressed }) => [
+                  styles.newNoteRow,
+                  { borderColor: palette.border, opacity: pressed ? 0.75 : 1 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Create new note"
+              >
+                <Ionicons name="create-outline" size={20} color={palette.textMuted} />
+                <Text style={[styles.newNoteLabel, { color: palette.text }]}>New note</Text>
+                <View style={{ flex: 1 }} />
+                <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+              </Pressable>
+            }
+            renderItem={({ item }) => <NoteRow note={item} />}
+          />
+        )}
+      </View>
     </View>
   )
 }
 
-function TagPill({
-  label,
-  active,
-  onPress,
+function TagChip({
+  display,
+  value,
+  selected,
+  onSelect,
   palette,
 }: {
-  label: string
-  active: boolean
-  onPress: () => void
-  palette: ReturnType<typeof usePalette>
+  display: string
+  value: string | null
+  selected: boolean
+  onSelect: () => void
+  palette: ThemePalette
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onSelect}
       style={({ pressed }) => [
-        styles.tag,
+        styles.tagChip,
         {
-          borderColor: palette.border,
-          backgroundColor: active ? palette.surfaceMuted : "transparent",
-          opacity: pressed ? 0.8 : 1,
+          borderColor: selected ? palette.text : palette.border,
+          backgroundColor: selected ? palette.surfaceMuted : palette.background,
+          opacity: pressed ? 0.82 : 1,
         },
       ]}
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+      accessibilityState={{ selected }}
+      accessibilityLabel={value === null ? "Show all notes" : `Filter by tag ${value}`}
     >
       <Text
-        style={{
-          color: palette.text,
-          fontSize: FontSize.sm,
-          fontWeight: active ? "600" : "500",
-        }}
+        style={[
+          styles.tagChipText,
+          {
+            color: selected ? palette.text : palette.textMuted,
+            fontWeight: selected ? "600" : "500",
+          },
+        ]}
+        numberOfLines={1}
       >
-        {label}
+        {display}
       </Text>
     </Pressable>
   )
@@ -249,13 +264,15 @@ function TagPill({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  body: { flex: 1 },
+  flexList: { flex: 1 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.sm,
   },
-  newIconButton: {
+  headerIconButton: {
     alignItems: "center",
     justifyContent: "center",
     marginLeft: -Spacing.xs,
@@ -291,18 +308,29 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     paddingVertical: Platform.OS === "ios" ? 10 : 8,
   },
-  tagScroll: {
+  tagSection: {
     gap: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    alignItems: "center",
+    marginBottom: Spacing.xs,
   },
-  tag: {
-    borderRadius: Radius.pill,
+  tagSectionLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: "600",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  tagWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  tagChip: {
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
-    minHeight: 40,
-    justifyContent: "center",
+  },
+  tagChipText: {
+    fontSize: FontSize.sm,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,

@@ -1,3 +1,4 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useEffect, useState } from "react"
 import { Alert, StyleSheet } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -15,6 +16,7 @@ import { Spacing } from "@/lib/theme"
 import { TASK_STATUS_LABELS, type Task, type TaskStatus } from "@/lib/types"
 
 export default function TaskDetailScreen() {
+  const headerHeight = useHeaderHeight()
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()
   const id = String(params.id ?? "")
@@ -107,7 +109,7 @@ export default function TaskDetailScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding>
+    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
       {editing ? (
         <PageSection
           title="Update task details"

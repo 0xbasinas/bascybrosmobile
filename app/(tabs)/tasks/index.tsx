@@ -18,8 +18,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { TaskRow } from "@/components/tasks/task-row"
 import { UserMenu } from "@/components/user-menu"
+import { LoadingState } from "@/components/ui/page"
 import { useApi, HttpError } from "@/lib/api"
-import { MOCK_TASKS } from "@/lib/mock-productivity-data"
 import { groupTasksIntoSections } from "@/lib/task-grouping"
 import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import { type Task, type TaskStatus } from "@/lib/types"
@@ -39,7 +39,7 @@ export default function TasksListScreen() {
   const insets = useSafeAreaInsets()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
-  const inputRef = useRef<TextInput>(null)
+  const composerInputRef = useRef<TextInput>(null)
 
   const [search, setSearch] = useState("")
   const [composerOpen, setComposerOpen] = useState(false)
@@ -55,7 +55,6 @@ export default function TasksListScreen() {
       const qs = params.toString()
       return requestJson(`/api/mobile/tasks${qs ? `?${qs}` : ""}`)
     },
-    placeholderData: () => ({ ok: true, tasks: MOCK_TASKS }),
   })
 
   const setStatus = useMutation<unknown, HttpError, { id: string; status: TaskStatus }>({
@@ -113,13 +112,19 @@ export default function TasksListScreen() {
   }
 
   const bottomPad = TAB_BAR_OFFSET + Math.max(insets.bottom, Spacing.md) + Spacing.xl
-  const fabBottom = TAB_BAR_OFFSET + Math.max(insets.bottom, Spacing.sm) + Spacing.md
+  const showInitialLoading = query.isLoading && !query.data
+  const showWarmEmpty = !query.isError && !showInitialLoading && flatCount === 0 && !search.trim()
+  const showSearchEmpty =
+    !showInitialLoading && flatCount === 0 && search.trim().length > 0
 
-  const showWarmEmpty = !query.error && flatCount === 0 && !search.trim()
-  const showSearchEmpty = flatCount === 0 && search.trim().length > 0
+  const iosKeyboardOffset = TAB_BAR_OFFSET + Math.max(insets.top, Spacing.sm) + Spacing.lg
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.screen, { backgroundColor: palette.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={iosKeyboardOffset}
+    >
       <View
         style={[
           styles.topBar,
@@ -128,6 +133,20 @@ export default function TasksListScreen() {
           },
         ]}
       >
+        <Pressable
+          onPress={() => {
+            setComposerOpen(true)
+            setTimeout(() => composerInputRef.current?.focus(), 60)
+          }}
+          style={({ pressed }) => [
+            styles.headerIconButton,
+            { opacity: pressed ? 0.65 : 1, minWidth: TOUCH, minHeight: TOUCH },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Add task"
+        >
+          <Ionicons name="add" size={28} color={palette.text} />
+        </Pressable>
         <View style={{ flex: 1 }} />
         <UserMenu />
       </View>
@@ -143,7 +162,6 @@ export default function TasksListScreen() {
         >
           <Ionicons name="search" size={18} color={palette.textMuted} style={styles.searchIcon} />
           <TextInput
-            ref={inputRef}
             placeholder="Search"
             placeholderTextColor={palette.textMuted}
             value={search}
@@ -157,157 +175,147 @@ export default function TasksListScreen() {
         </View>
       </View>
 
-      {query.error ? (
-        <View style={styles.centerBlock}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>Couldn’t load tasks</Text>
-          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>{query.error.message}</Text>
-        </View>
-      ) : showWarmEmpty ? (
-        <View style={[styles.centerBlock, { paddingHorizontal: Spacing.xl }]}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>A clear list</Text>
-          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-            Add what matters for today. Everything else can wait in the wings.
-          </Text>
-        </View>
-      ) : showSearchEmpty ? (
-        <View style={styles.centerBlock}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>No matches</Text>
-          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-            Try a shorter phrase or clear the search field.
-          </Text>
-        </View>
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
-          stickySectionHeadersEnabled={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={query.isRefetching && !query.isLoading}
-              onRefresh={() => query.refetch()}
-              tintColor={palette.text}
-            />
-          }
-          renderSectionHeader={({ section: { title } }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionLabel, { color: palette.textMuted }]}>{title}</Text>
-            </View>
-          )}
-          renderItem={({ item }) => (
-            <TaskRow
-              task={item}
-              busy={setStatus.isPending && setStatus.variables?.id === item.id}
-              onCycleStatus={() =>
-                setStatus.mutate({ id: item.id, status: NEXT_STATUS[item.status] })
-              }
-              onSwipeComplete={(next) => setStatus.mutate({ id: item.id, status: next })}
-              onDelete={() => deleteTask.mutate(item.id)}
-              onSnooze={() => snoozeInCache(item.id)}
-            />
-          )}
-        />
-      )}
+      <View style={styles.body}>
+        {query.isError ? (
+          <View style={styles.centerBlock}>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>Couldn’t load tasks</Text>
+            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+              {query.error.message}
+            </Text>
+          </View>
+        ) : showInitialLoading ? (
+          <View style={styles.centerBlock}>
+            <LoadingState label="Loading tasks..." />
+          </View>
+        ) : showWarmEmpty ? (
+          <View style={[styles.centerBlock, { paddingHorizontal: Spacing.xl }]}>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>A clear list</Text>
+            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+              Add what matters for today. Everything else can wait in the wings.
+            </Text>
+          </View>
+        ) : showSearchEmpty ? (
+          <View style={styles.centerBlock}>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>No matches</Text>
+            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+              Try a shorter phrase or clear the search field.
+            </Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            style={styles.flexList}
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
+            stickySectionHeadersEnabled={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={query.isRefetching && !query.isLoading}
+                onRefresh={() => query.refetch()}
+                tintColor={palette.text}
+              />
+            }
+            renderSectionHeader={({ section: { title } }) => (
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionLabel, { color: palette.textMuted }]}>{title}</Text>
+              </View>
+            )}
+            renderItem={({ item }) => (
+              <TaskRow
+                task={item}
+                busy={setStatus.isPending && setStatus.variables?.id === item.id}
+                onCycleStatus={() =>
+                  setStatus.mutate({ id: item.id, status: NEXT_STATUS[item.status] })
+                }
+                onSwipeComplete={(next) => setStatus.mutate({ id: item.id, status: next })}
+                onDelete={() => deleteTask.mutate(item.id)}
+                onSnooze={() => snoozeInCache(item.id)}
+              />
+            )}
+          />
+        )}
+      </View>
 
       {composerOpen ? (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={TAB_BAR_OFFSET + insets.top}
-          style={styles.composerWrap}
-        >
-          <View
-            style={[
-              styles.composer,
-              {
-                backgroundColor: palette.surface,
-                borderTopColor: palette.border,
-                paddingBottom: Math.max(insets.bottom, Spacing.sm),
-              },
-            ]}
-          >
-            <Pressable
-              onPress={() => {
-                setComposerOpen(false)
-                setDraft("")
-                Keyboard.dismiss()
-              }}
-              style={styles.composerClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close quick add"
-            >
-              <Ionicons name="chevron-down" size={24} color={palette.textMuted} />
-            </Pressable>
-            <TextInput
-              placeholder="New task"
-              placeholderTextColor={palette.textMuted}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={() => {
-                if (draft.trim() && !quickCreate.isPending) quickCreate.mutate()
-              }}
-              returnKeyType="done"
-              style={[styles.composerInput, { color: palette.text }]}
-              autoFocus
-              accessibilityLabel="Quick add task title"
-            />
-            <Pressable
-              onPress={() => {
-                if (draft.trim() && !quickCreate.isPending) quickCreate.mutate()
-              }}
-              disabled={!draft.trim() || quickCreate.isPending}
-              style={({ pressed }) => [
-                styles.composerSend,
-                {
-                  opacity: !draft.trim() ? 0.35 : pressed ? 0.75 : 1,
-                  minWidth: TOUCH,
-                  minHeight: TOUCH,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Save quick task"
-            >
-              {quickCreate.isPending ? (
-                <ActivityIndicator color={palette.text} />
-              ) : (
-                <Ionicons name="arrow-up-circle" size={32} color={palette.text} />
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      ) : null}
-
-      {!composerOpen ? (
-        <Pressable
-          onPress={() => {
-            setComposerOpen(true)
-            setTimeout(() => inputRef.current?.focus(), 50)
-          }}
-          style={({ pressed }) => [
-            styles.fab,
+        <View
+          style={[
+            styles.composer,
             {
-              backgroundColor: palette.primary,
-              bottom: fabBottom,
-              opacity: pressed ? 0.88 : 1,
+              backgroundColor: palette.surface,
+              borderTopColor: palette.border,
+              paddingBottom: Math.max(insets.bottom, Spacing.sm),
             },
           ]}
-          accessibilityRole="button"
-          accessibilityLabel="Add task"
         >
-          <Ionicons name="add" size={28} color={palette.primaryText} />
-        </Pressable>
+          <Pressable
+            onPress={() => {
+              setComposerOpen(false)
+              setDraft("")
+              Keyboard.dismiss()
+            }}
+            style={styles.composerClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close quick add"
+          >
+            <Ionicons name="chevron-down" size={24} color={palette.textMuted} />
+          </Pressable>
+          <TextInput
+            ref={composerInputRef}
+            placeholder="New task"
+            placeholderTextColor={palette.textMuted}
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={() => {
+              if (draft.trim() && !quickCreate.isPending) quickCreate.mutate()
+            }}
+            returnKeyType="done"
+            style={[styles.composerInput, { color: palette.text }]}
+            autoFocus
+            accessibilityLabel="Quick add task title"
+          />
+          <Pressable
+            onPress={() => {
+              if (draft.trim() && !quickCreate.isPending) quickCreate.mutate()
+            }}
+            disabled={!draft.trim() || quickCreate.isPending}
+            style={({ pressed }) => [
+              styles.composerSend,
+              {
+                opacity: !draft.trim() ? 0.35 : pressed ? 0.75 : 1,
+                minWidth: TOUCH,
+                minHeight: TOUCH,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Save quick task"
+          >
+            {quickCreate.isPending ? (
+              <ActivityIndicator color={palette.text} />
+            ) : (
+              <Ionicons name="arrow-up-circle" size={32} color={palette.text} />
+            )}
+          </Pressable>
+        </View>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  body: { flex: 1 },
+  flexList: { flex: 1 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.sm,
+  },
+  headerIconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: -Spacing.xs,
   },
   header: {
     paddingHorizontal: Spacing.lg,
@@ -370,22 +378,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     lineHeight: FontSize.md * 1.45,
     textAlign: "center",
-  },
-  fab: {
-    position: "absolute",
-    right: Spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 0,
-  },
-  composerWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   composer: {
     flexDirection: "row",

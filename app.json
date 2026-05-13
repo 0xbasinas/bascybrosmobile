@@ -19,6 +19,7 @@
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "package": "xyz.bascybros.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#000000",

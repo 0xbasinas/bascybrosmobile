@@ -14,7 +14,7 @@ export function NoteFields({
   contentPlaceholder = "Write your note in Markdown...",
   contentMinHeight = 280,
   titleDescription = "Give this note a clear name.",
-  tagsDescription = "Comma-separated labels help filter notes later.",
+  tagsDescription = "Comma-separated. They appear as #tags in your library.",
   contentDescription = "Markdown is supported for longer notes.",
 }: {
   title: string
@@ -42,7 +42,7 @@ export function NoteFields({
 
       <PageField label="Tags" description={tagsDescription}>
         <AppTextInput
-          placeholder="e.g. xss, web, recon"
+          placeholder="ideas, work, journal"
           value={tags}
           onChangeText={onTagsChange}
           autoCapitalize="none"

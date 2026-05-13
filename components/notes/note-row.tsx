@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { Link } from "expo-router"
 import { Pressable, StyleSheet, Text, View, Platform } from "react-native"
 
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 import type { Note, NoteKind } from "@/lib/types"
 
 function splitTags(value: string): string[] {
@@ -72,17 +72,23 @@ export function NoteRow({ note }: { note: Note }) {
               No body yet
             </Text>
           )}
-          <View style={styles.metaRow}>
-            <Text style={[styles.meta, { color: palette.textMuted }]}>
-              {formatUpdated(note.updatedAt)}
-            </Text>
-            {tags.length > 0 ? (
-              <Text style={[styles.meta, { color: palette.textMuted }]} numberOfLines={1}>
-                {" · "}
-                {tags.join(" · ")}
-              </Text>
-            ) : null}
-          </View>
+          <Text style={[styles.dateLine, { color: palette.textMuted }]}>
+            {formatUpdated(note.updatedAt)}
+          </Text>
+          {tags.length > 0 ? (
+            <View style={styles.tagPills}>
+              {tags.map((t) => (
+                <View
+                  key={t}
+                  style={[styles.tagPill, { borderColor: palette.border, backgroundColor: palette.background }]}
+                >
+                  <Text style={[styles.tagPillText, { color: palette.textMuted }]} numberOfLines={1}>
+                    #{t}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       </Pressable>
     </Link>
@@ -124,14 +130,26 @@ const styles = StyleSheet.create({
     lineHeight: FontSize.sm * 1.45,
     fontWeight: "400",
   },
-  metaRow: {
-    flexDirection: "row",
+  dateLine: {
     marginTop: Spacing.sm,
-    flexWrap: "wrap",
-  },
-  meta: {
     fontSize: FontSize.xs,
     fontWeight: "500",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+  },
+  tagPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: Spacing.sm,
+  },
+  tagPill: {
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tagPillText: {
+    fontSize: FontSize.xs,
+    fontWeight: "500",
   },
 })

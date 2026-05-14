@@ -1,8 +1,7 @@
-import { Ionicons } from "@expo/vector-icons"
 import { Link } from "expo-router"
 import { Pressable, StyleSheet, Text, View, Platform } from "react-native"
 
-import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { Note, NoteKind } from "@/lib/types"
 
 function splitTags(value: string): string[] {
@@ -41,54 +40,37 @@ export function NoteRow({ note }: { note: Note }) {
   const tags = splitTags(note.tags)
   const snippet = previewLine(note)
   const kind = inferKind(note)
+  const dateStr = formatUpdated(note.updatedAt)
+  const tagStr = tags.map((t) => `#${t}`).join(" · ")
+  const metaLine = tagStr ? `${dateStr} · ${tagStr}` : dateStr
 
   return (
     <Link href={{ pathname: "/(tabs)/notes/[id]", params: { id: note.id } }} asChild>
       <Pressable
         style={({ pressed }) => [
           styles.row,
-          { borderBottomColor: palette.border, opacity: pressed ? 0.72 : 1 },
+          { borderBottomColor: palette.border, opacity: pressed ? 0.7 : 1 },
         ]}
       >
-        <View style={styles.iconCol}>
-          <View style={[styles.kindIcon, { backgroundColor: palette.surfaceMuted }]}>
-            <Ionicons
-              name={kind === "checklist" ? "checkbox-outline" : "document-text-outline"}
-              size={18}
-              color={palette.textMuted}
-            />
-          </View>
-        </View>
+        <View
+          style={[
+            styles.accent,
+            {
+              backgroundColor: kind === "checklist" ? palette.textMuted : palette.border,
+            },
+          ]}
+          accessibilityLabel={kind === "checklist" ? "Checklist note" : "Text note"}
+        />
         <View style={styles.body}>
-          <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
+          <Text style={[styles.title, { color: palette.text }]} numberOfLines={2}>
             {note.title}
           </Text>
-          {snippet ? (
-            <Text style={[styles.snippet, { color: palette.textMuted }]} numberOfLines={2}>
-              {snippet}
-            </Text>
-          ) : (
-            <Text style={[styles.snippet, { color: palette.textMuted }]} numberOfLines={1}>
-              No body yet
-            </Text>
-          )}
-          <Text style={[styles.dateLine, { color: palette.textMuted }]}>
-            {formatUpdated(note.updatedAt)}
+          <Text style={[styles.snippet, { color: palette.textMuted }]} numberOfLines={2}>
+            {snippet || "No preview yet"}
           </Text>
-          {tags.length > 0 ? (
-            <View style={styles.tagPills}>
-              {tags.map((t) => (
-                <View
-                  key={t}
-                  style={[styles.tagPill, { borderColor: palette.border, backgroundColor: palette.background }]}
-                >
-                  <Text style={[styles.tagPillText, { color: palette.textMuted }]} numberOfLines={1}>
-                    #{t}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <Text style={[styles.meta, { color: palette.textMuted }]} numberOfLines={1}>
+            {metaLine}
+          </Text>
         </View>
       </Pressable>
     </Link>
@@ -99,57 +81,39 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "stretch",
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingRight: Spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  accent: {
+    width: 3,
+    alignSelf: "stretch",
     minHeight: 44,
-  },
-  iconCol: {
-    paddingRight: Spacing.md,
-    justifyContent: "flex-start",
-    paddingTop: 2,
-  },
-  kindIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 2,
+    marginRight: Spacing.md,
+    marginVertical: 2,
   },
   body: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
+    gap: 4,
   },
   title: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: "600",
-    letterSpacing: Platform.OS === "ios" ? -0.35 : 0,
+    letterSpacing: Platform.OS === "ios" ? -0.2 : 0,
+    lineHeight: FontSize.md * 1.25,
   },
   snippet: {
-    marginTop: 6,
     fontSize: FontSize.sm,
-    lineHeight: FontSize.sm * 1.45,
+    lineHeight: FontSize.sm * 1.4,
     fontWeight: "400",
   },
-  dateLine: {
-    marginTop: Spacing.sm,
+  meta: {
     fontSize: FontSize.xs,
     fontWeight: "500",
-    letterSpacing: 0.2,
-  },
-  tagPills: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: Spacing.sm,
-  },
-  tagPill: {
-    borderRadius: Radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  tagPillText: {
-    fontSize: FontSize.xs,
-    fontWeight: "500",
+    letterSpacing: 0.15,
+    marginTop: 2,
   },
 })

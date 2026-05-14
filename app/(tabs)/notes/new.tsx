@@ -44,8 +44,8 @@ export default function NewNoteScreen() {
   return (
     <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
       <PageSection
-        title="Write your note"
-        description="Add the structure first, then drop in as much markdown detail as you need."
+        title="New note"
+        description="Give it a clear title, optional tags, then write in Markdown."
       >
         <NoteFields
           title={title}

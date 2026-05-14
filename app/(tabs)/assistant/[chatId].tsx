@@ -1,9 +1,12 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useEffect, useRef, useState } from "react"
 import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Platform,
   StyleSheet,
+  Text,
   View,
   useWindowDimensions,
 } from "react-native"
@@ -13,16 +16,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatComposer } from "@/components/assistant/chat-composer"
 import { ChatMessageBubble, type LiveMessage } from "@/components/assistant/chat-message-bubble"
-import { LoadingState, PageSection } from "@/components/ui/page"
-import { Text } from "@/components/ui/text"
+import { LoadingState } from "@/components/ui/page"
 import { useApi, HttpError } from "@/lib/api"
 import { consumeAssistantStream } from "@/lib/assistant-stream"
-import { Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat, AssistantMessage } from "@/lib/types"
 
 export default function AssistantChatScreen() {
   const palette = usePalette()
   const insets = useSafeAreaInsets()
+  const headerHeight = useHeaderHeight()
   const { height: windowHeight } = useWindowDimensions()
   const params = useLocalSearchParams<{ chatId: string }>()
   const chatId = String(params.chatId ?? "")
@@ -189,28 +192,28 @@ export default function AssistantChatScreen() {
     }))
   }
 
-  const emptyMinHeight = Math.min(windowHeight * 0.5, 420)
+  const emptyMinHeight = Math.min(windowHeight * 0.45, 360)
+  const keyboardOffset =
+    Platform.OS === "ios" ? headerHeight + Math.max(insets.top, 0) : 0
 
   const listEmpty = (
     <View style={[styles.emptyWrap, { minHeight: emptyMinHeight }]}>
       {query.isLoading ? (
         <LoadingState label="Loading conversation..." style={styles.loading} />
       ) : query.error ? (
-        <PageSection title="Couldn't load chat" contentStyle={styles.noticeContent}>
-          <Text selectable style={{ color: palette.danger }}>
+        <View style={styles.emptyInner}>
+          <Text style={[styles.emptyTitle, { color: palette.text }]}>Could not load chat</Text>
+          <Text style={[styles.emptyBody, { color: palette.danger }]} selectable>
             {query.error.message}
           </Text>
-        </PageSection>
+        </View>
       ) : (
-        <PageSection
-          title="Start the conversation"
-          description="Ask the assistant about your notes, tasks, CTFs, or anything else."
-          contentStyle={styles.noticeContent}
-        >
-          <Text variant="muted" selectable>
-            Turn on web search when you want live web results mixed into the answer.
+        <View style={styles.emptyInner}>
+          <Text style={[styles.emptyTitle, { color: palette.text }]}>Say something</Text>
+          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+            Ask about your notes, tasks, or turn on web search for live results.
           </Text>
-        </PageSection>
+        </View>
       )}
     </View>
   )
@@ -218,8 +221,8 @@ export default function AssistantChatScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={process.env.EXPO_OS === "ios" ? 80 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <FlatList
         ref={listRef}
@@ -236,7 +239,7 @@ export default function AssistantChatScreen() {
         ]}
         onContentSizeChange={() => scrollToEnd(false)}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={process.env.EXPO_OS === "ios" ? "interactive" : "on-drag"}
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         contentInsetAdjustmentBehavior="automatic"
       />
 
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
   transcript: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
   transcriptEmpty: {
     flexGrow: 1,
@@ -280,13 +283,24 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
   },
-  loading: { padding: Spacing.xl, alignItems: "center" },
-  noticeContent: {
+  emptyInner: {
+    paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
   },
+  emptyTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  emptyBody: {
+    fontSize: FontSize.sm,
+    lineHeight: FontSize.sm * 1.45,
+    textAlign: "center",
+  },
+  loading: { padding: Spacing.xl, alignItems: "center" },
   composerOuter: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 })

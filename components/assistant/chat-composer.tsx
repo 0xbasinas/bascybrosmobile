@@ -1,8 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
-import { Pressable, StyleSheet, Switch, View, Platform, useColorScheme } from "react-native"
+import { Pressable, StyleSheet, Switch, Text, TextInput, View, Platform } from "react-native"
 
-import { AppTextInput } from "@/components/ui/input"
-import { Text } from "@/components/ui/text"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 
 export function ChatComposer({
@@ -23,43 +21,27 @@ export function ChatComposer({
   onStop: () => void
 }) {
   const palette = usePalette()
-  const colorScheme = useColorScheme()
   const canSend = !streaming && Boolean(prompt.trim())
 
-  const cardShadow =
-    Platform.OS === "ios"
-      ? {
-          shadowColor: palette.text,
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: colorScheme === "dark" ? 0.35 : 0.12,
-          shadowRadius: 10,
-        }
-      : { elevation: 4 }
-
   return (
-    <View
-      style={[
-        styles.card,
-        cardShadow,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
+    <View style={[styles.wrap, { backgroundColor: palette.surfaceMuted }]}>
       <View style={styles.toggleRow}>
         <View style={styles.toggleGroup}>
           <Switch
             value={webSearch}
             onValueChange={onToggleWebSearch}
             disabled={streaming}
-            trackColor={{ false: palette.surfaceMuted, true: palette.primary }}
-            thumbColor={Platform.OS === "android" ? (webSearch ? palette.primaryText : palette.surface) : undefined}
-            ios_backgroundColor={palette.surfaceMuted}
+            trackColor={{ false: palette.surface, true: palette.primary }}
+            thumbColor={
+              Platform.OS === "android"
+                ? webSearch
+                  ? palette.primaryText
+                  : palette.surface
+                : undefined
+            }
+            ios_backgroundColor={palette.surface}
           />
-          <Text variant="muted" selectable style={styles.toggleText}>
-            Web search
-          </Text>
+          <Text style={[styles.toggleText, { color: palette.textMuted }]}>Web search</Text>
         </View>
         {streaming ? (
           <Pressable
@@ -67,27 +49,32 @@ export function ChatComposer({
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Stop generating"
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 4 })}
           >
-            <Text
-              selectable
-              style={{ color: palette.danger, fontSize: FontSize.sm, fontWeight: "600" }}
-            >
+            <Text style={{ color: palette.danger, fontSize: FontSize.sm, fontWeight: "600" }}>
               Stop
             </Text>
           </Pressable>
         ) : null}
       </View>
 
-      <View style={styles.row}>
-        <AppTextInput
-          placeholder="Message the assistant…"
+      <View style={styles.inputRow}>
+        <TextInput
+          placeholder="Message..."
+          placeholderTextColor={palette.textMuted}
           value={prompt}
           onChangeText={onPromptChange}
           multiline
-          style={styles.input}
           editable={!streaming}
           accessibilityLabel="Message input"
+          style={[
+            styles.input,
+            {
+              color: palette.text,
+              backgroundColor: palette.background,
+              borderColor: palette.border,
+            },
+          ]}
         />
         <Pressable
           onPress={onSend}
@@ -99,14 +86,15 @@ export function ChatComposer({
           style={({ pressed }) => [
             styles.sendButton,
             {
-              backgroundColor: canSend ? palette.primary : palette.surfaceMuted,
+              backgroundColor: canSend ? palette.primary : palette.surface,
+              borderColor: palette.border,
               opacity: pressed && canSend ? 0.88 : 1,
             },
           ]}
         >
           <Ionicons
             name="arrow-up"
-            size={22}
+            size={20}
             color={canSend ? palette.primaryText : palette.textMuted}
           />
         </Pressable>
@@ -116,9 +104,8 @@ export function ChatComposer({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.xl,
+  wrap: {
+    borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     gap: Spacing.md,
@@ -139,24 +126,27 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     flexShrink: 1,
   },
-  row: {
+  inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: Spacing.sm,
   },
   input: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 48,
     maxHeight: 160,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
-    textAlignVertical: "top",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
     fontSize: FontSize.md,
+    textAlignVertical: "top",
   },
   sendButton: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
   },

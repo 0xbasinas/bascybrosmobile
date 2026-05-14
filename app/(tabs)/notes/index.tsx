@@ -199,12 +199,14 @@ export default function NotesListScreen() {
                 onPress={() => router.push("/(tabs)/notes/new")}
                 style={({ pressed }) => [
                   styles.newNoteRow,
-                  { borderColor: palette.border, opacity: pressed ? 0.75 : 1 },
+                  { borderBottomColor: palette.border, opacity: pressed ? 0.72 : 1 },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Create new note"
               >
-                <Ionicons name="create-outline" size={20} color={palette.textMuted} />
+                <View style={[styles.newNoteIcon, { backgroundColor: palette.surfaceMuted }]}>
+                  <Ionicons name="add" size={22} color={palette.text} />
+                </View>
                 <Text style={[styles.newNoteLabel, { color: palette.text }]}>New note</Text>
                 <View style={{ flex: 1 }} />
                 <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
@@ -340,12 +342,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    minHeight: 52,
-    marginBottom: Spacing.lg,
+    minHeight: 48,
+    marginBottom: Spacing.sm,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.md,
+    paddingRight: Spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  newNoteIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   newNoteLabel: {
     fontSize: FontSize.md,

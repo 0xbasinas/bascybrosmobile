@@ -35,12 +35,12 @@ export default function NewTaskScreen() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] })
       router.back()
     },
-    onError: (err) => Alert.alert("Couldn't create task", err.message),
+    onError: (err) => Alert.alert("Couldn't save task", err.message),
   })
 
   function handleSave() {
     if (!title.trim()) {
-      Alert.alert("Missing title", "Tasks need a title.")
+      Alert.alert("Missing title", "Add a short title so you can find this task later.")
       return
     }
     create.mutate()
@@ -49,8 +49,8 @@ export default function NewTaskScreen() {
   return (
     <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
       <PageSection
-        title="Set up the task"
-        description="Keep the title scannable and add supporting notes only where they help."
+        title="New task"
+        description="Name it clearly, set where it sits, and add notes only if they help you execute."
       >
         <TaskFields
           title={title}
@@ -59,10 +59,15 @@ export default function NewTaskScreen() {
           onTitleChange={setTitle}
           onDetailsChange={setDetails}
           onStatusChange={setStatus}
+          titleDescription="Keep it short enough to scan in your list."
+          statusDescription="Open, in progress, or done — you can change this anytime."
+          detailsDescription="Optional markdown for context, links, or checklists."
+          detailsPlaceholder="Optional details..."
+          detailsMinHeight={320}
         />
       </PageSection>
       <AppButton
-        title="Create task"
+        title="Save task"
         size="lg"
         fullWidth
         loading={create.isPending}

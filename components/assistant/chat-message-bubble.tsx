@@ -1,7 +1,6 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 
 import { MarkdownView } from "@/components/markdown"
-import { Text } from "@/components/ui/text"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 import type { AssistantMessage } from "@/lib/types"
 
@@ -15,66 +14,59 @@ export function ChatMessageBubble({ message }: { message: LiveMessage }) {
   return (
     <View
       style={[
-        styles.bubble,
-        {
-          backgroundColor: isUser ? palette.primary : palette.surfaceMuted,
-          borderColor: palette.border,
-          alignSelf: isUser ? "flex-end" : "flex-start",
-          borderTopLeftRadius: Radius.lg,
-          borderTopRightRadius: Radius.lg,
-          borderBottomRightRadius: isUser ? Radius.sm : Radius.lg,
-          borderBottomLeftRadius: isUser ? Radius.lg : Radius.sm,
-        },
+        styles.row,
+        isUser ? styles.rowUser : styles.rowAssistant,
       ]}
     >
-      <Text
+      <View
         style={[
-          styles.roleLabel,
-          { color: isUser ? palette.primaryText : palette.textMuted },
+          styles.bubble,
+          {
+            backgroundColor: isUser ? palette.surfaceMuted : palette.background,
+            maxWidth: isUser ? "88%" : "100%",
+          },
         ]}
-        selectable
       >
-        {isUser ? "You" : "Assistant"}
-      </Text>
-      {isUser ? (
-        <Text
-          selectable
-          style={{ color: palette.primaryText, fontSize: FontSize.md, lineHeight: 22 }}
-        >
-          {message.contentMarkdown}
-        </Text>
-      ) : (
-        <View style={styles.assistantBody}>
-          {isPendingEmpty ? (
-            <View style={styles.pendingRow}>
-              <ActivityIndicator color={palette.textMuted} />
-              <Text variant="muted" style={styles.pendingLabel}>
-                Thinking…
-              </Text>
-            </View>
-          ) : message.contentMarkdown ? (
-            <MarkdownView markdown={message.contentMarkdown} />
-          ) : (
-            <ActivityIndicator color={palette.textMuted} />
-          )}
-        </View>
-      )}
+        {isUser ? (
+          <Text
+            selectable
+            style={{ color: palette.text, fontSize: FontSize.md, lineHeight: FontSize.md * 1.4 }}
+          >
+            {message.contentMarkdown}
+          </Text>
+        ) : (
+          <View style={styles.assistantBody}>
+            {isPendingEmpty ? (
+              <View style={styles.pendingRow}>
+                <ActivityIndicator color={palette.textMuted} size="small" />
+                <Text style={{ color: palette.textMuted, fontSize: FontSize.sm }}>Thinking...</Text>
+              </View>
+            ) : message.contentMarkdown ? (
+              <MarkdownView markdown={message.contentMarkdown} />
+            ) : (
+              <ActivityIndicator color={palette.textMuted} size="small" />
+            )}
+          </View>
+        )}
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  bubble: {
-    maxWidth: "90%",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+  row: {
+    width: "100%",
   },
-  roleLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
-    marginBottom: Spacing.xs,
-    letterSpacing: 0.2,
+  rowUser: {
+    alignItems: "flex-end",
+  },
+  rowAssistant: {
+    alignItems: "flex-start",
+  },
+  bubble: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
   },
   assistantBody: {
     gap: Spacing.sm,
@@ -84,8 +76,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
-  },
-  pendingLabel: {
-    fontSize: FontSize.sm,
   },
 })

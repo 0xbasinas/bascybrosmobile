@@ -1,20 +1,23 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useEffect, useState } from "react"
 import { Alert, StyleSheet } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { TaskFields } from "@/components/tasks/task-fields"
+import { TaskStatusChips } from "@/components/tasks/task-status-chips"
 import { AppButton } from "@/components/ui/button"
-import { STATUS_OPTIONS, TaskFields } from "@/components/tasks/task-fields"
 import { MarkdownView } from "@/components/markdown"
 import { EmptyState } from "@/components/ui/empty"
+import { FormKeyboardSafeScroll } from "@/components/ui/form-keyboard-safe-scroll"
 import { LoadingScreen, PageField, PageScrollView, PageSection } from "@/components/ui/page"
-import { Segmented } from "@/components/ui/segmented"
 import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
-import { TASK_STATUS_LABELS, type Task, type TaskStatus } from "@/lib/types"
+import { type Task, type TaskStatus } from "@/lib/types"
 
 export default function TaskDetailScreen() {
+  const headerHeight = useHeaderHeight()
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()
   const id = String(params.id ?? "")
@@ -107,7 +110,7 @@ export default function TaskDetailScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding>
+    <FormKeyboardSafeScroll headerHeight={headerHeight}>
       {editing ? (
         <PageSection
           title="Update task details"
@@ -152,7 +155,6 @@ export default function TaskDetailScreen() {
       ) : (
         <PageSection
           title={task.title}
-          description={TASK_STATUS_LABELS[task.status]}
           contentStyle={styles.sectionContent}
           footer={
             <>
@@ -175,11 +177,11 @@ export default function TaskDetailScreen() {
         >
           <PageField
             label="Quick status"
-            description="Switch columns without opening edit mode."
+            description="Tap a status to update this task without opening edit mode."
           >
-            <Segmented
-              options={STATUS_OPTIONS}
+            <TaskStatusChips
               value={status}
+              disabled={setTaskStatus.isPending}
               onChange={(next) => {
                 if (setTaskStatus.isPending) return
                 setStatus(next)
@@ -197,7 +199,7 @@ export default function TaskDetailScreen() {
           )}
         </PageSection>
       )}
-    </PageScrollView>
+    </FormKeyboardSafeScroll>
   )
 }
 

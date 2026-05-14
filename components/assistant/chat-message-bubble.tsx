@@ -1,7 +1,6 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 
 import { MarkdownView } from "@/components/markdown"
-import { Text } from "@/components/ui/text"
 import { FontSize, Radius, Spacing, usePalette } from "@/lib/theme"
 import type { AssistantMessage } from "@/lib/types"
 
@@ -12,72 +11,80 @@ export function ChatMessageBubble({ message }: { message: LiveMessage }) {
   const isUser = message.role === "user"
   const isPendingEmpty = Boolean(message.pending) && !message.contentMarkdown.trim()
 
-  return (
-    <View
-      style={[
-        styles.bubble,
-        {
-          backgroundColor: isUser ? palette.primary : palette.surfaceMuted,
-          borderColor: palette.border,
-          alignSelf: isUser ? "flex-end" : "flex-start",
-          borderTopLeftRadius: Radius.lg,
-          borderTopRightRadius: Radius.lg,
-          borderBottomRightRadius: isUser ? Radius.sm : Radius.lg,
-          borderBottomLeftRadius: isUser ? Radius.lg : Radius.sm,
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.roleLabel,
-          { color: isUser ? palette.primaryText : palette.textMuted },
-        ]}
-        selectable
-      >
-        {isUser ? "You" : "Assistant"}
-      </Text>
-      {isUser ? (
-        <Text
-          selectable
-          style={{ color: palette.primaryText, fontSize: FontSize.md, lineHeight: 22 }}
+  if (isUser) {
+    return (
+      <View style={[styles.row, styles.rowUser]}>
+        <View
+          style={[
+            styles.bubbleUser,
+            { backgroundColor: palette.surfaceMuted },
+          ]}
         >
-          {message.contentMarkdown}
-        </Text>
-      ) : (
-        <View style={styles.assistantBody}>
-          {isPendingEmpty ? (
-            <View style={styles.pendingRow}>
-              <ActivityIndicator color={palette.textMuted} />
-              <Text variant="muted" style={styles.pendingLabel}>
-                Thinking…
-              </Text>
-            </View>
-          ) : message.contentMarkdown ? (
-            <MarkdownView markdown={message.contentMarkdown} />
-          ) : (
-            <ActivityIndicator color={palette.textMuted} />
-          )}
+          <Text
+            selectable
+            style={[styles.userText, { color: palette.text }]}
+          >
+            {message.contentMarkdown}
+          </Text>
         </View>
-      )}
+      </View>
+    )
+  }
+
+  return (
+    <View style={[styles.row, styles.rowAssistant]}>
+      <View style={[styles.assistantStripe, { backgroundColor: palette.border }]} />
+      <View style={styles.assistantCol}>
+        {isPendingEmpty ? (
+          <View style={styles.pendingRow}>
+            <ActivityIndicator color={palette.textMuted} size="small" />
+            <Text style={[styles.mutedSmall, { color: palette.textMuted }]}>Thinking…</Text>
+          </View>
+        ) : message.contentMarkdown ? (
+          <MarkdownView markdown={message.contentMarkdown} />
+        ) : (
+          <ActivityIndicator color={palette.textMuted} size="small" />
+        )}
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  bubble: {
-    maxWidth: "90%",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+  row: {
+    width: "100%",
   },
-  roleLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
-    marginBottom: Spacing.xs,
-    letterSpacing: 0.2,
+  rowUser: {
+    alignItems: "flex-end",
+    paddingLeft: Spacing.xxl,
   },
-  assistantBody: {
+  rowAssistant: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: Spacing.md,
+    paddingRight: Spacing.sm,
+  },
+  assistantStripe: {
+    width: 2,
+    borderRadius: 1,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  assistantCol: {
+    flex: 1,
+    minWidth: 0,
     gap: Spacing.sm,
+    paddingVertical: 2,
+  },
+  bubbleUser: {
+    maxWidth: "90%",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+  },
+  userText: {
+    fontSize: FontSize.md,
+    lineHeight: FontSize.md * 1.45,
   },
   pendingRow: {
     flexDirection: "row",
@@ -85,7 +92,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
   },
-  pendingLabel: {
+  mutedSmall: {
     fontSize: FontSize.sm,
   },
 })

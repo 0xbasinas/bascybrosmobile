@@ -1,24 +1,32 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Ionicons } from "@expo/vector-icons"
+import { useLocalSearchParams } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Platform,
   StyleSheet,
+  Text,
   View,
   useWindowDimensions,
 } from "react-native"
-import { useLocalSearchParams } from "expo-router"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { KeyboardStickyView, useResizeMode } from "react-native-keyboard-controller"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatComposer } from "@/components/assistant/chat-composer"
 import { ChatMessageBubble, type LiveMessage } from "@/components/assistant/chat-message-bubble"
-import { LoadingState, PageSection } from "@/components/ui/page"
-import { Text } from "@/components/ui/text"
-import { useApi, HttpError } from "@/lib/api"
+import { LoadingState } from "@/components/ui/page"
+import { HttpError, useApi } from "@/lib/api"
 import { consumeAssistantStream } from "@/lib/assistant-stream"
-import { Spacing, usePalette } from "@/lib/theme"
+import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat, AssistantMessage } from "@/lib/types"
+
+function AssistantAndroidKeyboardMode() {
+  useResizeMode()
+  return null
+}
 
 export default function AssistantChatScreen() {
   const palette = usePalette()
@@ -189,78 +197,99 @@ export default function AssistantChatScreen() {
     }))
   }
 
-  const emptyMinHeight = Math.min(windowHeight * 0.5, 420)
+  const emptyMinHeight = Math.min(windowHeight * 0.45, 360)
 
   const listEmpty = (
     <View style={[styles.emptyWrap, { minHeight: emptyMinHeight }]}>
       {query.isLoading ? (
         <LoadingState label="Loading conversation..." style={styles.loading} />
       ) : query.error ? (
-        <PageSection title="Couldn't load chat" contentStyle={styles.noticeContent}>
-          <Text selectable style={{ color: palette.danger }}>
+        <View style={styles.emptyInner}>
+          <Text style={[styles.emptyTitle, { color: palette.text }]}>Could not load chat</Text>
+          <Text style={[styles.emptyBody, { color: palette.danger }]} selectable>
             {query.error.message}
           </Text>
-        </PageSection>
+        </View>
       ) : (
-        <PageSection
-          title="Start the conversation"
-          description="Ask the assistant about your notes, tasks, CTFs, or anything else."
-          contentStyle={styles.noticeContent}
-        >
-          <Text variant="muted" selectable>
-            Turn on web search when you want live web results mixed into the answer.
+        <View style={styles.emptyInner}>
+          <View
+            style={[styles.emptyIconWrap, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}
+          >
+            <Ionicons name="chatbubbles-outline" size={44} color={palette.textMuted} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: palette.text }]}>Start the thread</Text>
+          <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
+            Ask about your notes or tasks. Turn on Web search when you want fresh results from the
+            internet.
           </Text>
-        </PageSection>
+        </View>
       )}
     </View>
   )
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={process.env.EXPO_OS === "ios" ? 80 : 0}
-    >
-      <FlatList
-        ref={listRef}
-        style={styles.list}
-        data={liveMessages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ChatMessageBubble message={item} />}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
-        ListEmptyComponent={listEmpty}
-        ListFooterComponent={<View style={{ height: Spacing.sm }} />}
-        contentContainerStyle={[
-          styles.transcript,
-          liveMessages.length === 0 ? styles.transcriptEmpty : null,
-        ]}
-        onContentSizeChange={() => scrollToEnd(false)}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={process.env.EXPO_OS === "ios" ? "interactive" : "on-drag"}
-        contentInsetAdjustmentBehavior="automatic"
-      />
+  const listEl = (
+    <FlatList
+      ref={listRef}
+      style={styles.list}
+      data={liveMessages}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <ChatMessageBubble message={item} />}
+      ItemSeparatorComponent={() => <View style={{ height: Spacing.lg + 4 }} />}
+      ListEmptyComponent={listEmpty}
+      ListFooterComponent={<View style={{ height: Spacing.sm }} />}
+      contentContainerStyle={[
+        styles.transcript,
+        liveMessages.length === 0 ? styles.transcriptEmpty : null,
+      ]}
+      onContentSizeChange={() => scrollToEnd(false)}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      contentInsetAdjustmentBehavior="automatic"
+    />
+  )
 
-      <View
-        style={[
-          styles.composerOuter,
-          {
-            backgroundColor: palette.background,
-            borderTopColor: palette.border,
-            paddingBottom: Math.max(insets.bottom, Spacing.sm),
-          },
-        ]}
+  const composerSection = (
+    <View
+      style={[
+        styles.composerOuter,
+        {
+          backgroundColor: palette.background,
+          borderTopColor: palette.border,
+          paddingBottom: Math.max(insets.bottom, Spacing.sm),
+        },
+      ]}
+    >
+      <ChatComposer
+        prompt={prompt}
+        streaming={streaming}
+        webSearch={webSearch}
+        onPromptChange={setPrompt}
+        onToggleWebSearch={setWebSearch}
+        onSend={handleSend}
+        onStop={handleStop}
+      />
+    </View>
+  )
+
+  if (Platform.OS === "web") {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: palette.background }}
+        behavior={undefined}
+        keyboardVerticalOffset={0}
       >
-        <ChatComposer
-          prompt={prompt}
-          streaming={streaming}
-          webSearch={webSearch}
-          onPromptChange={setPrompt}
-          onToggleWebSearch={setWebSearch}
-          onSend={handleSend}
-          onStop={handleStop}
-        />
-      </View>
-    </KeyboardAvoidingView>
+        {listEl}
+        {composerSection}
+      </KeyboardAvoidingView>
+    )
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: palette.background }}>
+      <AssistantAndroidKeyboardMode />
+      {listEl}
+      <KeyboardStickyView style={{ width: "100%" }}>{composerSection}</KeyboardStickyView>
+    </View>
   )
 }
 
@@ -269,9 +298,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transcript: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
   },
   transcriptEmpty: {
     flexGrow: 1,
@@ -280,13 +309,34 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
   },
-  loading: { padding: Spacing.xl, alignItems: "center" },
-  noticeContent: {
-    gap: Spacing.sm,
+  emptyInner: {
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    alignItems: "center",
   },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xs,
+  },
+  emptyTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  emptyBody: {
+    fontSize: FontSize.sm,
+    lineHeight: FontSize.sm * 1.45,
+    textAlign: "center",
+  },
+  loading: { padding: Spacing.xl, alignItems: "center" },
   composerOuter: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 })

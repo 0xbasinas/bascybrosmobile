@@ -1,6 +1,5 @@
 import { Stack } from "expo-router"
 
-import { UserMenu } from "@/components/user-menu"
 import { usePalette } from "@/lib/theme"
 
 export default function AssistantStackLayout() {
@@ -18,11 +17,11 @@ export default function AssistantStackLayout() {
         contentStyle: { backgroundColor: palette.background },
       }}
     >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
-        name="index"
-        options={{ title: "Assistant", headerRight: () => <UserMenu /> }}
+        name="[chatId]"
+        options={{ title: "Chat", headerLargeTitle: false }}
       />
-      <Stack.Screen name="[chatId]" options={{ title: "Chat", headerLargeTitle: false }} />
     </Stack>
   )
 }

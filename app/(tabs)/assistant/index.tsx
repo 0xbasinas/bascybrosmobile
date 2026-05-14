@@ -1,23 +1,26 @@
-import {
-  Alert,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from "react-native"
-import { useRouter } from "expo-router"
+import { useIsFocused } from "@react-navigation/native"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useRouter } from "expo-router"
+import { useCallback, useMemo } from "react"
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { AppButton } from "@/components/ui/button"
 import { ChatRow } from "@/components/assistant/chat-row"
+import { LIST_FAB_CLEARANCE, ListFab } from "@/components/lists/list-fab"
+import { ListHero } from "@/components/lists/list-hero"
 import { EmptyState } from "@/components/ui/empty"
-import { LoadingState, PageSection } from "@/components/ui/page"
-import { useApi, HttpError } from "@/lib/api"
+import { LoadingState } from "@/components/ui/page"
+import { UserMenu } from "@/components/user-menu"
+import { HttpError, useApi } from "@/lib/api"
+import { useKeyboardHeight } from "@/lib/hooks/useKeyboardHeight"
 import { Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat } from "@/lib/types"
 
 export default function AssistantListScreen() {
   const palette = usePalette()
+  const insets = useSafeAreaInsets()
+  const listFocused = useIsFocused()
+  const keyboardHeight = useKeyboardHeight()
   const router = useRouter()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
@@ -49,50 +52,64 @@ export default function AssistantListScreen() {
     onError: (err) => Alert.alert("Couldn't delete chat", err.message),
   })
 
-  const chats = query.data?.chats ?? []
+  const chats = useMemo(() => query.data?.chats ?? [], [query.data?.chats])
+  const bottomPad = LIST_FAB_CLEARANCE + (listFocused ? keyboardHeight : 0)
+  const showInitialLoading = query.isLoading && !query.data
+
+  const renderHeader = useCallback(
+    () => (
+      <View style={styles.headerBlock}>
+        <ListHero eyebrow="Workspace" title="Assistant" />
+      </View>
+    ),
+    [],
+  )
+
+  const listEmpty = useMemo(
+    () => (
+      <View style={styles.emptyInList}>
+        <EmptyState
+          title="No conversations yet"
+          description="Ask about your notes, tasks, or anything else. Use the round add button to start a new chat."
+        />
+      </View>
+    ),
+    [],
+  )
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.topPadding}>
-        <PageSection contentStyle={styles.headerCard}>
-          <AppButton
-            title="New chat"
-            loading={create.isPending}
-            onPress={() => create.mutate()}
-            fullWidth
-          />
-        </PageSection>
+    <View className="flex-1" style={{ backgroundColor: palette.background }}>
+      <View
+        className="flex-row items-center justify-end px-4 pb-2"
+        style={{ paddingTop: Math.max(insets.top, Spacing.sm) }}
+      >
+        <UserMenu />
       </View>
 
-      {query.isLoading ? (
-        <View style={styles.statePadding}>
-          <LoadingState label="Loading chats..." style={styles.stateFill} />
+      {query.isError ? (
+        <View style={styles.centerBlock}>
+          <EmptyState title="Couldn't load chats" description={query.error.message} />
         </View>
-      ) : query.error ? (
-        <View style={styles.statePadding}>
-          <PageSection contentStyle={styles.stateCard}>
-            <EmptyState title="Couldn't load chats" description={query.error.message} />
-          </PageSection>
-        </View>
-      ) : chats.length === 0 ? (
-        <View style={styles.statePadding}>
-          <PageSection contentStyle={styles.stateCard}>
-            <EmptyState
-              title="No chats yet"
-              description="Tap New chat to ask the assistant about your workspace."
-            />
-          </PageSection>
+      ) : showInitialLoading ? (
+        <View style={styles.centerBlock}>
+          <LoadingState label="Loading chats..." />
         </View>
       ) : (
         <FlatList
           data={chats}
           keyExtractor={(item) => item.id}
+          style={styles.flexList}
           contentInsetAdjustmentBehavior="automatic"
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: bottomPad, flexGrow: 1 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={listEmpty}
           refreshControl={
             <RefreshControl
-              refreshing={query.isFetching && !query.isLoading}
+              refreshing={query.isRefetching && !query.isLoading}
               onRefresh={() => query.refetch()}
               tintColor={palette.text}
             />
@@ -114,31 +131,39 @@ export default function AssistantListScreen() {
           )}
         />
       )}
+
+      {!query.isError && !showInitialLoading ? (
+        <ListFab
+          useKeyboardInset={listFocused}
+          onPress={() => create.mutate()}
+          accessibilityLabel="Start a new chat"
+          loading={create.isPending}
+        />
+      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  topPadding: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-  },
-  statePadding: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-  },
-  stateFill: {
-    flex: 1,
-  },
-  stateCard: { minHeight: 220 },
-  headerCard: {
-    gap: Spacing.sm,
+  flexList: { flex: 1 },
+  headerBlock: {
+    paddingBottom: Spacing.sm,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xxl,
+    paddingTop: Spacing.sm,
+  },
+  emptyInList: {
+    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.sm,
+    minHeight: 220,
+    justifyContent: "center",
+  },
+  centerBlock: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: Spacing.sm,
+    maxWidth: 420,
+    alignSelf: "center",
   },
 })

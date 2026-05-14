@@ -1,7 +1,7 @@
-import type { ReactNode } from "react"
+import { forwardRef, type ReactNode } from "react"
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { useKeyboardHeight } from "@/lib/hooks/useKeyboardHeight"
 import { Screen } from "@/components/ui/screen"
 import {
   Card,
@@ -23,36 +24,58 @@ import {
 import { Text } from "@/components/ui/text"
 import { Spacing, usePalette } from "@/lib/theme"
 
-type PageScrollViewProps = ScrollViewProps & {
+export type PageScrollViewProps = ScrollViewProps & {
   padded?: boolean
   keyboardAvoiding?: boolean
   keyboardVerticalOffset?: number
+  /** Extra space above the keyboard when `keyboardAvoiding` is true (helps multiline editors). */
+  extraKeyboardBottomGap?: number
 }
 
-export function PageScrollView({
-  children,
-  padded = true,
-  keyboardAvoiding = false,
-  keyboardVerticalOffset = 0,
-  contentContainerStyle,
-  keyboardShouldPersistTaps,
-  style,
-  ...props
-}: PageScrollViewProps) {
+export const PageScrollView = forwardRef<ScrollView, PageScrollViewProps>(function PageScrollView(
+  {
+    children,
+    padded = true,
+    keyboardAvoiding = false,
+    keyboardVerticalOffset,
+    extraKeyboardBottomGap = 0,
+    contentContainerStyle,
+    keyboardShouldPersistTaps,
+    style,
+    ...props
+  },
+  ref,
+) {
   const palette = usePalette()
   const insets = useSafeAreaInsets()
+  const keyboardHeight = useKeyboardHeight()
 
-  const scrollView = (
+  const baseBottomPad = Math.max(insets.bottom, Spacing.lg) + Spacing.lg
+  const keyboardPad = keyboardAvoiding ? keyboardHeight + extraKeyboardBottomGap : 0
+  /** Header offset slack is for iOS inset tuning only; on Android it stacks with `resize` + keyboard height and causes huge jumps. */
+  const headerScrollSlack =
+    Platform.OS === "ios" &&
+    keyboardAvoiding &&
+    keyboardHeight > 0 &&
+    keyboardVerticalOffset != null &&
+    keyboardVerticalOffset > 0
+      ? keyboardVerticalOffset
+      : 0
+
+  return (
     <ScrollView
+      ref={ref}
       {...props}
       style={[styles.flex, { backgroundColor: palette.background }, style]}
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps={keyboardShouldPersistTaps ?? "handled"}
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets={keyboardAvoiding && Platform.OS === "ios"}
       contentContainerStyle={[
         styles.scrollContent,
         {
           paddingTop: Spacing.lg,
-          paddingBottom: Math.max(insets.bottom, Spacing.lg) + Spacing.lg,
+          paddingBottom: baseBottomPad + keyboardPad + headerScrollSlack,
         },
         padded ? { paddingHorizontal: Spacing.lg } : null,
         contentContainerStyle,
@@ -61,21 +84,7 @@ export function PageScrollView({
       {children}
     </ScrollView>
   )
-
-  if (!keyboardAvoiding) {
-    return scrollView
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: palette.background }]}
-      behavior={process.env.EXPO_OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={keyboardVerticalOffset}
-    >
-      {scrollView}
-    </KeyboardAvoidingView>
-  )
-}
+})
 
 export function PageSection({
   title,
@@ -98,7 +107,9 @@ export function PageSection({
     <Card style={style} className="w-full shrink-0">
       {title || description ? (
         <CardHeader style={styles.sectionHeader}>
-          {title ? <CardTitle>{title}</CardTitle> : null}
+          {title ? (
+            <CardTitle className="text-xl leading-snug">{title}</CardTitle>
+          ) : null}
           {description ? <CardDescription>{description}</CardDescription> : null}
         </CardHeader>
       ) : null}
@@ -168,7 +179,9 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
   sectionHeader: {
-    gap: Spacing.xs,
+    gap: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
   },
   sectionContent: {
     gap: Spacing.md,

@@ -1,3 +1,4 @@
+import { useHeaderHeight } from "@react-navigation/elements"
 import { useState } from "react"
 import { Alert } from "react-native"
 import { useRouter } from "expo-router"
@@ -5,11 +6,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { NoteFields } from "@/components/notes/note-fields"
+import { FormKeyboardSafeScroll } from "@/components/ui/form-keyboard-safe-scroll"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
-import { PageScrollView, PageSection } from "@/components/ui/page"
+import { PageSection } from "@/components/ui/page"
 
 export default function NewNoteScreen() {
+  const headerHeight = useHeaderHeight()
   const router = useRouter()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
@@ -40,10 +43,10 @@ export default function NewNoteScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding>
+    <FormKeyboardSafeScroll headerHeight={headerHeight}>
       <PageSection
-        title="Write your note"
-        description="Add the structure first, then drop in as much markdown detail as you need."
+        title="New note"
+        description="Give it a clear title, optional tags, then write in Markdown."
       >
         <NoteFields
           title={title}
@@ -52,7 +55,7 @@ export default function NewNoteScreen() {
           onTitleChange={setTitle}
           onTagsChange={setTags}
           onContentChange={setContent}
-          contentMinHeight={320}
+          contentMinHeight={280}
         />
       </PageSection>
       <AppButton
@@ -63,6 +66,6 @@ export default function NewNoteScreen() {
         onPress={handleSave}
         style={{ marginTop: Spacing.lg }}
       />
-    </PageScrollView>
+    </FormKeyboardSafeScroll>
   )
 }

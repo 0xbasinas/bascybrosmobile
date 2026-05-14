@@ -1,4 +1,4 @@
-import type { Task } from "@/lib/types"
+import { TASK_STATUS_LABELS, type Task } from "@/lib/types"
 
 export type TaskSection = { title: string; data: Task[] }
 
@@ -56,6 +56,6 @@ export function groupTasksIntoSections(tasks: Task[], search: string): TaskSecti
   if (today.length) sections.push({ title: "Today", data: today })
   if (upcoming.length) sections.push({ title: "Upcoming", data: upcoming })
   if (anytime.length) sections.push({ title: "Anytime", data: anytime })
-  if (done.length) sections.push({ title: "Completed", data: done })
+  if (done.length) sections.push({ title: TASK_STATUS_LABELS.done, data: done })
   return sections
 }

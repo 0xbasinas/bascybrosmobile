@@ -11,42 +11,39 @@ export function ChatMessageBubble({ message }: { message: LiveMessage }) {
   const isUser = message.role === "user"
   const isPendingEmpty = Boolean(message.pending) && !message.contentMarkdown.trim()
 
-  return (
-    <View
-      style={[
-        styles.row,
-        isUser ? styles.rowUser : styles.rowAssistant,
-      ]}
-    >
-      <View
-        style={[
-          styles.bubble,
-          {
-            backgroundColor: isUser ? palette.surfaceMuted : palette.background,
-            maxWidth: isUser ? "88%" : "100%",
-          },
-        ]}
-      >
-        {isUser ? (
+  if (isUser) {
+    return (
+      <View style={[styles.row, styles.rowUser]}>
+        <View
+          style={[
+            styles.bubbleUser,
+            { backgroundColor: palette.surfaceMuted },
+          ]}
+        >
           <Text
             selectable
-            style={{ color: palette.text, fontSize: FontSize.md, lineHeight: FontSize.md * 1.4 }}
+            style={[styles.userText, { color: palette.text }]}
           >
             {message.contentMarkdown}
           </Text>
-        ) : (
-          <View style={styles.assistantBody}>
-            {isPendingEmpty ? (
-              <View style={styles.pendingRow}>
-                <ActivityIndicator color={palette.textMuted} size="small" />
-                <Text style={{ color: palette.textMuted, fontSize: FontSize.sm }}>Thinking...</Text>
-              </View>
-            ) : message.contentMarkdown ? (
-              <MarkdownView markdown={message.contentMarkdown} />
-            ) : (
-              <ActivityIndicator color={palette.textMuted} size="small" />
-            )}
+        </View>
+      </View>
+    )
+  }
+
+  return (
+    <View style={[styles.row, styles.rowAssistant]}>
+      <View style={[styles.assistantStripe, { backgroundColor: palette.border }]} />
+      <View style={styles.assistantCol}>
+        {isPendingEmpty ? (
+          <View style={styles.pendingRow}>
+            <ActivityIndicator color={palette.textMuted} size="small" />
+            <Text style={[styles.mutedSmall, { color: palette.textMuted }]}>Thinking…</Text>
           </View>
+        ) : message.contentMarkdown ? (
+          <MarkdownView markdown={message.contentMarkdown} />
+        ) : (
+          <ActivityIndicator color={palette.textMuted} size="small" />
         )}
       </View>
     </View>
@@ -59,22 +56,43 @@ const styles = StyleSheet.create({
   },
   rowUser: {
     alignItems: "flex-end",
+    paddingLeft: Spacing.xxl,
   },
   rowAssistant: {
-    alignItems: "flex-start",
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: Spacing.md,
+    paddingRight: Spacing.sm,
   },
-  bubble: {
+  assistantStripe: {
+    width: 2,
+    borderRadius: 1,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  assistantCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: Spacing.sm,
+    paddingVertical: 2,
+  },
+  bubbleUser: {
+    maxWidth: "90%",
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
   },
-  assistantBody: {
-    gap: Spacing.sm,
+  userText: {
+    fontSize: FontSize.md,
+    lineHeight: FontSize.md * 1.45,
   },
   pendingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
+  },
+  mutedSmall: {
+    fontSize: FontSize.sm,
   },
 })

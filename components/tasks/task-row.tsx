@@ -19,6 +19,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated"
 
+import { Card } from "@/components/ui/card"
 import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types"
 
@@ -171,7 +172,7 @@ export function TaskRow({
         </View>
       )}
     >
-      <View style={[styles.row, { borderBottomColor: palette.border }]}>
+      <Card className="mb-2 flex-row items-stretch gap-0 overflow-hidden py-0 pl-0 pr-0 shadow-sm shadow-black/5">
         <Pressable
           onPress={handleCheckboxPress}
           disabled={busy}
@@ -202,7 +203,10 @@ export function TaskRow({
         </Pressable>
 
         <Link href={{ pathname: "/(tabs)/tasks/[id]", params: { id: task.id } }} asChild>
-          <Pressable style={({ pressed }) => [styles.body, { opacity: pressed ? 0.72 : 1 }]}>
+          <Pressable
+            className="min-h-[52px] flex-1 justify-center py-2 pr-2"
+            style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}
+          >
             <Animated.Text
               style={[
                 styles.title,
@@ -216,7 +220,7 @@ export function TaskRow({
             >
               {task.title}
             </Animated.Text>
-            {(dueLine || pg) ? (
+            {dueLine || pg ? (
               <View style={styles.metaRow}>
                 {dueLine ? (
                   <Text style={[styles.meta, { color: palette.textMuted }]}>{dueLine}</Text>
@@ -224,26 +228,17 @@ export function TaskRow({
                 {dueLine && pg ? (
                   <Text style={[styles.metaDot, { color: palette.textMuted }]}>·</Text>
                 ) : null}
-                {pg ? (
-                  <Text style={[styles.meta, { color: palette.textMuted }]}>{pg}</Text>
-                ) : null}
+                {pg ? <Text style={[styles.meta, { color: palette.textMuted }]}>{pg}</Text> : null}
               </View>
             ) : null}
           </Pressable>
         </Link>
-      </View>
+      </Card>
     </Swipeable>
   )
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    minHeight: TOUCH + Spacing.sm,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
   checkboxHit: {
     width: TOUCH,
     minHeight: TOUCH,
@@ -268,12 +263,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: StyleSheet.hairlineWidth * 2,
-  },
-  body: {
-    flex: 1,
-    justifyContent: "center",
-    paddingRight: Spacing.sm,
-    paddingVertical: Platform.OS === "ios" ? 2 : 0,
   },
   title: {
     fontSize: FontSize.md,

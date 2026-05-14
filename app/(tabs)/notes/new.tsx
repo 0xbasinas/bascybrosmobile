@@ -6,9 +6,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { NoteFields } from "@/components/notes/note-fields"
+import { FormKeyboardSafeScroll } from "@/components/ui/form-keyboard-safe-scroll"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
-import { PageScrollView, PageSection } from "@/components/ui/page"
+import { PageSection } from "@/components/ui/page"
 
 export default function NewNoteScreen() {
   const headerHeight = useHeaderHeight()
@@ -42,7 +43,7 @@ export default function NewNoteScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
+    <FormKeyboardSafeScroll headerHeight={headerHeight}>
       <PageSection
         title="New note"
         description="Give it a clear title, optional tags, then write in Markdown."
@@ -54,7 +55,7 @@ export default function NewNoteScreen() {
           onTitleChange={setTitle}
           onTagsChange={setTags}
           onContentChange={setContent}
-          contentMinHeight={320}
+          contentMinHeight={280}
         />
       </PageSection>
       <AppButton
@@ -65,6 +66,6 @@ export default function NewNoteScreen() {
         onPress={handleSave}
         style={{ marginTop: Spacing.lg }}
       />
-    </PageScrollView>
+    </FormKeyboardSafeScroll>
   )
 }

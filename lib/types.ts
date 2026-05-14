@@ -73,6 +73,6 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   open: "Open",
-  in_progress: "In progress",
+  in_progress: "In Progress",
   done: "Done",
 }

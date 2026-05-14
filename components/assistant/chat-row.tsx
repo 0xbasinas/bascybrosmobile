@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons"
 import { Link } from "expo-router"
-import { Pressable, StyleSheet, Text, View, Platform } from "react-native"
+import { Pressable, View } from "react-native"
 
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
+import { Card } from "@/components/ui/card"
+import { Text } from "@/components/ui/text"
+import { usePalette } from "@/lib/theme"
 import type { AssistantChat } from "@/lib/types"
 
 function formatDate(unix: number) {
@@ -23,72 +25,28 @@ export function ChatRow({
   const palette = usePalette()
 
   return (
-    <View style={[styles.row, { borderBottomColor: palette.border }]}>
-      <View style={[styles.accent, { backgroundColor: palette.border }]} />
+    <View className="mb-3 flex-row items-stretch gap-2">
       <Link href={{ pathname: "/(tabs)/assistant/[chatId]", params: { chatId: chat.id } }} asChild>
-        <Pressable style={({ pressed }) => [styles.body, { opacity: pressed ? 0.72 : 1 }]}>
-          <Text style={[styles.title, { color: palette.text }]} numberOfLines={2}>
-            {chat.title}
-          </Text>
-          <Text style={[styles.meta, { color: palette.textMuted }]} numberOfLines={1}>
-            Updated {formatDate(chat.updatedAt)}
-          </Text>
+        <Pressable className="min-w-0 flex-1 active:opacity-90">
+          <Card className="flex-1 flex-col gap-1 py-4 pl-4 pr-3 shadow-sm shadow-black/5">
+            <Text className="text-base font-semibold leading-snug" numberOfLines={2}>
+              {chat.title}
+            </Text>
+            <Text variant="muted" className="text-xs font-medium tracking-wide" numberOfLines={1}>
+              Updated {formatDate(chat.updatedAt)}
+            </Text>
+          </Card>
         </Pressable>
       </Link>
       <Pressable
-        hitSlop={10}
+        hitSlop={12}
         onPress={onDelete}
-        style={({ pressed }) => [
-          styles.trashHit,
-          { opacity: pressed ? 0.55 : 1 },
-        ]}
         accessibilityRole="button"
         accessibilityLabel="Delete chat"
+        className="w-11 items-center justify-center rounded-xl border border-border bg-card active:opacity-80"
       >
-        <Ionicons name="trash-outline" size={18} color={palette.textMuted} />
+        <Ionicons name="trash-outline" size={20} color={palette.textMuted} />
       </Pressable>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    paddingVertical: Spacing.md,
-    paddingRight: Spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  accent: {
-    width: 3,
-    alignSelf: "stretch",
-    minHeight: 44,
-    borderRadius: 2,
-    marginRight: Spacing.md,
-    marginVertical: 2,
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: "center",
-    gap: 4,
-    paddingRight: Spacing.sm,
-  },
-  title: {
-    fontSize: FontSize.md,
-    fontWeight: "600",
-    letterSpacing: Platform.OS === "ios" ? -0.2 : 0,
-    lineHeight: FontSize.md * 1.25,
-  },
-  meta: {
-    fontSize: FontSize.xs,
-    fontWeight: "500",
-    letterSpacing: 0.15,
-  },
-  trashHit: {
-    width: 44,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-})

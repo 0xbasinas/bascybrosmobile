@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { NoteFields } from "@/components/notes/note-fields"
+import { FormKeyboardSafeScroll } from "@/components/ui/form-keyboard-safe-scroll"
 import { MarkdownView } from "@/components/markdown"
 import { EmptyState } from "@/components/ui/empty"
 import { LoadingScreen, PageScrollView, PageSection } from "@/components/ui/page"
@@ -115,7 +116,7 @@ export default function NoteDetailScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
+    <FormKeyboardSafeScroll headerHeight={headerHeight}>
       {editing ? (
         <PageSection
           title="Make changes"
@@ -150,7 +151,7 @@ export default function NoteDetailScreen() {
             onTitleChange={setTitle}
             onTagsChange={setTags}
             onContentChange={setContent}
-            contentMinHeight={360}
+            contentMinHeight={300}
             titleDescription="Keep the note name concise and recognizable."
             tagsDescription="Comma-separated tags power note filtering."
             contentDescription="Markdown changes save directly back to this note."
@@ -192,7 +193,7 @@ export default function NoteDetailScreen() {
           <MarkdownView markdown={note.contentMarkdown} />
         </PageSection>
       )}
-    </PageScrollView>
+    </FormKeyboardSafeScroll>
   )
 }
 

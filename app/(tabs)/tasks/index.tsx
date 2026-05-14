@@ -1,28 +1,42 @@
 import { Ionicons } from "@expo/vector-icons"
+import { useIsFocused } from "@react-navigation/native"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   RefreshControl,
   SectionList,
   StyleSheet,
-  Text,
-  TextInput,
   View,
+  type TextInput,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { FilterChip } from "@/components/lists/filter-chip"
+import { ListFab, LIST_FAB_CLEARANCE } from "@/components/lists/list-fab"
+import { ListHero } from "@/components/lists/list-hero"
+import { ListSearchBar } from "@/components/lists/list-search-bar"
 import { TaskRow } from "@/components/tasks/task-row"
 import { UserMenu } from "@/components/user-menu"
+import { AppTextInput } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty"
 import { LoadingState } from "@/components/ui/page"
+import { Text } from "@/components/ui/text"
 import { useApi, HttpError } from "@/lib/api"
+import { useKeyboardHeight } from "@/lib/hooks/useKeyboardHeight"
 import { groupTasksIntoSections } from "@/lib/task-grouping"
-import { FontSize, Spacing, usePalette } from "@/lib/theme"
-import { type Task, type TaskStatus } from "@/lib/types"
+import { Spacing, usePalette } from "@/lib/theme"
+import {
+  TASK_STATUSES,
+  TASK_STATUS_LABELS,
+  type Task,
+  type TaskStatus,
+} from "@/lib/types"
 
 const NEXT_STATUS: Record<TaskStatus, TaskStatus> = {
   open: "in_progress",
@@ -31,17 +45,19 @@ const NEXT_STATUS: Record<TaskStatus, TaskStatus> = {
 }
 
 const TAB_BAR_OFFSET = 58
-const TOUCH = 44
 const DAY = 86400
 
 export default function TasksListScreen() {
   const palette = usePalette()
   const insets = useSafeAreaInsets()
+  const listFocused = useIsFocused()
+  const keyboardHeight = useKeyboardHeight()
   const { requestJson } = useApi()
   const queryClient = useQueryClient()
   const composerInputRef = useRef<TextInput>(null)
 
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
   const [draft, setDraft] = useState("")
 
@@ -89,12 +105,14 @@ export default function TasksListScreen() {
     },
   })
 
-  const tasks = useMemo(() => query.data?.tasks ?? [], [query.data?.tasks])
-  const sections = useMemo(() => groupTasksIntoSections(tasks, search), [tasks, search])
-  const flatCount = useMemo(
-    () => sections.reduce((n, s) => n + s.data.length, 0),
-    [sections]
-  )
+  const tasksRaw = useMemo(() => query.data?.tasks ?? [], [query.data?.tasks])
+  const tasksFiltered = useMemo(() => {
+    if (!statusFilter) return tasksRaw
+    return tasksRaw.filter((t) => t.status === statusFilter)
+  }, [tasksRaw, statusFilter])
+
+  const sections = useMemo(() => groupTasksIntoSections(tasksFiltered, search), [tasksFiltered, search])
+  const flatCount = useMemo(() => sections.reduce((n, s) => n + s.data.length, 0), [sections])
 
   function snoozeInCache(taskId: string) {
     queryClient.setQueryData<{ ok: boolean; tasks: Task[] }>(tasksQueryKey, (old) => {
@@ -111,296 +129,260 @@ export default function TasksListScreen() {
     })
   }
 
-  const bottomPad = TAB_BAR_OFFSET + Math.max(insets.bottom, Spacing.md) + Spacing.xl
+  const kbPad = listFocused ? keyboardHeight : 0
+  const bottomPad =
+    (composerOpen
+      ? TAB_BAR_OFFSET + Math.max(insets.bottom, Spacing.md) + Spacing.xl
+      : LIST_FAB_CLEARANCE) + kbPad
   const showInitialLoading = query.isLoading && !query.data
-  const showWarmEmpty = !query.isError && !showInitialLoading && flatCount === 0 && !search.trim()
+  const showWarmEmpty =
+    !query.isError && !showInitialLoading && tasksRaw.length === 0 && !search.trim()
   const showSearchEmpty =
     !showInitialLoading && flatCount === 0 && search.trim().length > 0
+  const showStatusFilterEmpty =
+    !showInitialLoading &&
+    !query.isError &&
+    tasksRaw.length > 0 &&
+    flatCount === 0 &&
+    !search.trim() &&
+    statusFilter !== null
 
   const iosKeyboardOffset = TAB_BAR_OFFSET + Math.max(insets.top, Spacing.sm) + Spacing.lg
 
+  const renderTasksHeader = useCallback(
+    () => (
+      <View style={styles.headerBlock}>
+        <ListHero eyebrow="Focus" title="Tasks" />
+        <ListSearchBar
+          containerClassName="mb-3"
+          placeholder="Search tasks"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search tasks"
+        />
+        <View style={styles.filterBlock}>
+          <Text variant="small" className="text-muted-foreground uppercase tracking-widest">
+            Filter by status
+          </Text>
+          <View style={styles.chipRow}>
+            <FilterChip
+              label="All tasks"
+              selected={statusFilter === null}
+              onPress={() => setStatusFilter(null)}
+              accessibilityLabel="Show all tasks"
+            />
+            {TASK_STATUSES.map((s) => (
+              <FilterChip
+                key={s}
+                label={TASK_STATUS_LABELS[s]}
+                selected={statusFilter === s}
+                onPress={() => setStatusFilter(statusFilter === s ? null : s)}
+                accessibilityLabel={`Filter by ${TASK_STATUS_LABELS[s]}`}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+    ),
+    [search, statusFilter],
+  )
+
+  const tasksListEmpty = useMemo(() => {
+    if (flatCount > 0) return null
+    if (showSearchEmpty) {
+      return (
+        <View style={styles.emptyInList}>
+          <EmptyState
+            title="No matches"
+            description="Try a shorter phrase or clear the search field."
+          />
+        </View>
+      )
+    }
+    if (showStatusFilterEmpty) {
+      return (
+        <View style={styles.emptyInList}>
+          <EmptyState
+            title="Nothing in this status"
+            description="Choose another status or show all tasks."
+          />
+        </View>
+      )
+    }
+    if (showWarmEmpty) {
+      return (
+        <View style={styles.emptyInList}>
+          <EmptyState
+            title="A clear list"
+            description="Add what matters for today. Tap the round add button to capture a task quickly."
+          />
+        </View>
+      )
+    }
+    return null
+  }, [flatCount, showSearchEmpty, showStatusFilterEmpty, showWarmEmpty])
+
   return (
     <KeyboardAvoidingView
-      style={[styles.screen, { backgroundColor: palette.background }]}
+      className="flex-1"
+      style={{ backgroundColor: palette.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={iosKeyboardOffset}
     >
       <View
-        style={[
-          styles.topBar,
-          {
-            paddingTop: Math.max(insets.top, Spacing.sm),
-          },
-        ]}
+        className="flex-row items-center justify-end px-4 pb-2"
+        style={{ paddingTop: Math.max(insets.top, Spacing.sm) }}
       >
-        <Pressable
-          onPress={() => {
-            setComposerOpen(true)
-            setTimeout(() => composerInputRef.current?.focus(), 60)
-          }}
-          style={({ pressed }) => [
-            styles.headerIconButton,
-            { opacity: pressed ? 0.65 : 1, minWidth: TOUCH, minHeight: TOUCH },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Add task"
-        >
-          <Ionicons name="add" size={28} color={palette.text} />
-        </Pressable>
-        <View style={{ flex: 1 }} />
         <UserMenu />
       </View>
 
-      <View style={styles.header}>
-        <Text style={[styles.eyebrow, { color: palette.textMuted }]}>Focus</Text>
-        <Text style={[styles.screenTitle, { color: palette.text }]}>Tasks</Text>
-        <View
-          style={[
-            styles.searchRow,
-            { borderBottomColor: palette.border },
-          ]}
-        >
-          <Ionicons name="search" size={18} color={palette.textMuted} style={styles.searchIcon} />
-          <TextInput
-            placeholder="Search"
-            placeholderTextColor={palette.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            style={[styles.searchInput, { color: palette.text }]}
-            accessibilityLabel="Search tasks"
-          />
+      {query.isError ? (
+        <View style={styles.centerBlock}>
+          <EmptyState title="Couldn't load tasks" description={query.error.message} />
         </View>
-      </View>
-
-      <View style={styles.body}>
-        {query.isError ? (
-          <View style={styles.centerBlock}>
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>Couldn’t load tasks</Text>
-            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-              {query.error.message}
-            </Text>
-          </View>
-        ) : showInitialLoading ? (
-          <View style={styles.centerBlock}>
-            <LoadingState label="Loading tasks..." />
-          </View>
-        ) : showWarmEmpty ? (
-          <View style={[styles.centerBlock, { paddingHorizontal: Spacing.xl }]}>
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>A clear list</Text>
-            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-              Add what matters for today. Everything else can wait in the wings.
-            </Text>
-          </View>
-        ) : showSearchEmpty ? (
-          <View style={styles.centerBlock}>
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>No matches</Text>
-            <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-              Try a shorter phrase or clear the search field.
-            </Text>
-          </View>
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => item.id}
-            style={styles.flexList}
-            contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
-            stickySectionHeadersEnabled={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={query.isRefetching && !query.isLoading}
-                onRefresh={() => query.refetch()}
-                tintColor={palette.text}
-              />
-            }
-            renderSectionHeader={({ section: { title } }) => (
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionLabel, { color: palette.textMuted }]}>{title}</Text>
-              </View>
-            )}
-            renderItem={({ item }) => (
-              <TaskRow
-                task={item}
-                busy={setStatus.isPending && setStatus.variables?.id === item.id}
-                onCycleStatus={() =>
-                  setStatus.mutate({ id: item.id, status: NEXT_STATUS[item.status] })
-                }
-                onSwipeComplete={(next) => setStatus.mutate({ id: item.id, status: next })}
-                onDelete={() => deleteTask.mutate(item.id)}
-                onSnooze={() => snoozeInCache(item.id)}
-              />
-            )}
-          />
-        )}
-      </View>
+      ) : showInitialLoading ? (
+        <View style={styles.centerBlock}>
+          <LoadingState label="Loading tasks..." />
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          style={styles.flexList}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: bottomPad, flexGrow: 1 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={renderTasksHeader}
+          ListEmptyComponent={tasksListEmpty}
+          refreshControl={
+            <RefreshControl
+              refreshing={query.isRefetching && !query.isLoading}
+              onRefresh={() => query.refetch()}
+              tintColor={palette.text}
+            />
+          }
+          renderSectionHeader={({ section: { title } }) => (
+            <View className="pb-2 pt-6">
+              <Text variant="small" className="text-muted-foreground uppercase tracking-widest">
+                {title}
+              </Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
+            <TaskRow
+              task={item}
+              busy={setStatus.isPending && setStatus.variables?.id === item.id}
+              onCycleStatus={() =>
+                setStatus.mutate({ id: item.id, status: NEXT_STATUS[item.status] })
+              }
+              onSwipeComplete={(next) => setStatus.mutate({ id: item.id, status: next })}
+              onDelete={() => deleteTask.mutate(item.id)}
+              onSnooze={() => snoozeInCache(item.id)}
+            />
+          )}
+        />
+      )}
 
       {composerOpen ? (
-        <View
-          style={[
-            styles.composer,
-            {
-              backgroundColor: palette.surface,
-              borderTopColor: palette.border,
-              paddingBottom: Math.max(insets.bottom, Spacing.sm),
-            },
-          ]}
+        <Card
+          className="flex-row items-center gap-1 rounded-none rounded-t-2xl border-x-0 border-b-0 border-t border-border bg-card py-2 pl-1 pr-2 shadow-lg"
+          style={{
+            paddingBottom: Math.max(insets.bottom, Spacing.sm),
+          }}
         >
-          <Pressable
+          <Button
+            variant="ghost"
+            size="icon"
             onPress={() => {
               setComposerOpen(false)
               setDraft("")
               Keyboard.dismiss()
             }}
-            style={styles.composerClose}
-            accessibilityRole="button"
             accessibilityLabel="Close quick add"
           >
-            <Ionicons name="chevron-down" size={24} color={palette.textMuted} />
-          </Pressable>
-          <TextInput
+            <Ionicons name="chevron-down" size={22} color={palette.textMuted} />
+          </Button>
+          <AppTextInput
             ref={composerInputRef}
             placeholder="New task"
-            placeholderTextColor={palette.textMuted}
             value={draft}
             onChangeText={setDraft}
             onSubmitEditing={() => {
               if (draft.trim() && !quickCreate.isPending) quickCreate.mutate()
             }}
             returnKeyType="done"
-            style={[styles.composerInput, { color: palette.text }]}
             autoFocus
             accessibilityLabel="Quick add task title"
+            className="min-h-11 flex-1 border-0 bg-transparent px-1 shadow-none dark:bg-transparent"
           />
-          <Pressable
+          <Button
+            variant="ghost"
+            size="icon"
             onPress={() => {
               if (draft.trim() && !quickCreate.isPending) quickCreate.mutate()
             }}
             disabled={!draft.trim() || quickCreate.isPending}
-            style={({ pressed }) => [
-              styles.composerSend,
-              {
-                opacity: !draft.trim() ? 0.35 : pressed ? 0.75 : 1,
-                minWidth: TOUCH,
-                minHeight: TOUCH,
-              },
-            ]}
-            accessibilityRole="button"
             accessibilityLabel="Save quick task"
           >
             {quickCreate.isPending ? (
               <ActivityIndicator color={palette.text} />
             ) : (
-              <Ionicons name="arrow-up-circle" size={32} color={palette.text} />
+              <Ionicons name="send" size={24} color={palette.primary} />
             )}
-          </Pressable>
-        </View>
+          </Button>
+        </Card>
+      ) : null}
+
+      {!composerOpen && !query.isError && !showInitialLoading ? (
+        <ListFab
+          useKeyboardInset={listFocused}
+          onPress={() => {
+            setComposerOpen(true)
+            setTimeout(() => composerInputRef.current?.focus(), 60)
+          }}
+          accessibilityLabel="Add task"
+        />
       ) : null}
     </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  body: { flex: 1 },
   flexList: { flex: 1 },
-  topBar: {
+  headerBlock: {
+    paddingBottom: Spacing.xs,
+  },
+  filterBlock: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  chipRow: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  headerIconButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: -Spacing.xs,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
-  },
-  eyebrow: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  screenTitle: {
-    fontSize: FontSize.title,
-    fontWeight: "600",
-    letterSpacing: Platform.OS === "ios" ? -0.8 : 0,
-    marginBottom: Spacing.lg,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: TOUCH,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  searchIcon: { marginRight: Spacing.sm },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSize.md,
-    paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    flexWrap: "wrap",
+    gap: Spacing.sm,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
   },
-  sectionHeader: {
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.sm,
-  },
-  sectionLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
+  emptyInList: {
+    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.sm,
+    minHeight: 220,
+    justifyContent: "center",
   },
   centerBlock: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
     maxWidth: 420,
     alignSelf: "center",
-  },
-  emptyTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: "600",
-    marginBottom: Spacing.sm,
-    textAlign: "center",
-  },
-  emptyBody: {
-    fontSize: FontSize.md,
-    lineHeight: FontSize.md * 1.45,
-    textAlign: "center",
-  },
-  composer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: Spacing.xs,
-  },
-  composerClose: {
-    width: TOUCH,
-    height: TOUCH,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  composerInput: {
-    flex: 1,
-    fontSize: FontSize.md,
-    minHeight: TOUCH,
-    paddingVertical: Platform.OS === "ios" ? 10 : 8,
-  },
-  composerSend: {
-    alignItems: "center",
-    justifyContent: "center",
   },
 })

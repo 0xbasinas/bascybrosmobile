@@ -6,7 +6,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { AppButton } from "@/components/ui/button"
 import { TaskFields } from "@/components/tasks/task-fields"
-import { PageScrollView, PageSection } from "@/components/ui/page"
+import { FormKeyboardSafeScroll } from "@/components/ui/form-keyboard-safe-scroll"
+import { PageSection } from "@/components/ui/page"
 import { useApi, HttpError } from "@/lib/api"
 import { Spacing } from "@/lib/theme"
 import { type TaskStatus } from "@/lib/types"
@@ -47,7 +48,7 @@ export default function NewTaskScreen() {
   }
 
   return (
-    <PageScrollView keyboardAvoiding keyboardVerticalOffset={headerHeight}>
+    <FormKeyboardSafeScroll headerHeight={headerHeight}>
       <PageSection
         title="New task"
         description="Name it clearly, set where it sits, and add notes only if they help you execute."
@@ -60,7 +61,7 @@ export default function NewTaskScreen() {
           onDetailsChange={setDetails}
           onStatusChange={setStatus}
           titleDescription="Keep it short enough to scan in your list."
-          statusDescription="Open, in progress, or done — you can change this anytime."
+          statusDescription="Open, In Progress, or Done — you can change this anytime."
           detailsDescription="Optional markdown for context, links, or checklists."
           detailsPlaceholder="Optional details..."
           detailsMinHeight={320}
@@ -74,6 +75,6 @@ export default function NewTaskScreen() {
         onPress={handleSave}
         style={{ marginTop: Spacing.lg }}
       />
-    </PageScrollView>
+    </FormKeyboardSafeScroll>
   )
 }

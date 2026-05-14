@@ -1,15 +1,10 @@
 import { StyleSheet } from "react-native"
 
+import { TaskStatusChips } from "@/components/tasks/task-status-chips"
 import { AppTextInput } from "@/components/ui/input"
 import { PageField } from "@/components/ui/page"
-import { Segmented } from "@/components/ui/segmented"
 import { Spacing } from "@/lib/theme"
-import { TASK_STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@/lib/types"
-
-const STATUS_OPTIONS = TASK_STATUSES.map((status) => ({
-  value: status,
-  label: status === "in_progress" ? "Progress" : TASK_STATUS_LABELS[status],
-}))
+import type { TaskStatus } from "@/lib/types"
 
 export function TaskFields({
   title,
@@ -48,7 +43,7 @@ export function TaskFields({
       </PageField>
 
       <PageField label="Status" description={statusDescription}>
-        <Segmented options={STATUS_OPTIONS} value={status} onChange={onStatusChange} />
+        <TaskStatusChips value={status} onChange={onStatusChange} />
       </PageField>
 
       <PageField label="Details" description={detailsDescription}>
@@ -63,8 +58,6 @@ export function TaskFields({
     </>
   )
 }
-
-export { STATUS_OPTIONS }
 
 const styles = StyleSheet.create({
   editor: {

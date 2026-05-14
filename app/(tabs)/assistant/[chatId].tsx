@@ -1,4 +1,6 @@
-import { useHeaderHeight } from "@react-navigation/elements"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Ionicons } from "@expo/vector-icons"
+import { useLocalSearchParams } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
   Alert,
@@ -10,22 +12,25 @@ import {
   View,
   useWindowDimensions,
 } from "react-native"
-import { useLocalSearchParams } from "expo-router"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { KeyboardStickyView, useResizeMode } from "react-native-keyboard-controller"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatComposer } from "@/components/assistant/chat-composer"
 import { ChatMessageBubble, type LiveMessage } from "@/components/assistant/chat-message-bubble"
 import { LoadingState } from "@/components/ui/page"
-import { useApi, HttpError } from "@/lib/api"
+import { HttpError, useApi } from "@/lib/api"
 import { consumeAssistantStream } from "@/lib/assistant-stream"
 import { FontSize, Spacing, usePalette } from "@/lib/theme"
 import type { AssistantChat, AssistantMessage } from "@/lib/types"
 
+function AssistantAndroidKeyboardMode() {
+  useResizeMode()
+  return null
+}
+
 export default function AssistantChatScreen() {
   const palette = usePalette()
   const insets = useSafeAreaInsets()
-  const headerHeight = useHeaderHeight()
   const { height: windowHeight } = useWindowDimensions()
   const params = useLocalSearchParams<{ chatId: string }>()
   const chatId = String(params.chatId ?? "")
@@ -193,8 +198,6 @@ export default function AssistantChatScreen() {
   }
 
   const emptyMinHeight = Math.min(windowHeight * 0.45, 360)
-  const keyboardOffset =
-    Platform.OS === "ios" ? headerHeight + Math.max(insets.top, 0) : 0
 
   const listEmpty = (
     <View style={[styles.emptyWrap, { minHeight: emptyMinHeight }]}>
@@ -209,61 +212,84 @@ export default function AssistantChatScreen() {
         </View>
       ) : (
         <View style={styles.emptyInner}>
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>Say something</Text>
+          <View
+            style={[styles.emptyIconWrap, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}
+          >
+            <Ionicons name="chatbubbles-outline" size={44} color={palette.textMuted} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: palette.text }]}>Start the thread</Text>
           <Text style={[styles.emptyBody, { color: palette.textMuted }]}>
-            Ask about your notes, tasks, or turn on web search for live results.
+            Ask about your notes or tasks. Turn on Web search when you want fresh results from the
+            internet.
           </Text>
         </View>
       )}
     </View>
   )
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={keyboardOffset}
-    >
-      <FlatList
-        ref={listRef}
-        style={styles.list}
-        data={liveMessages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ChatMessageBubble message={item} />}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
-        ListEmptyComponent={listEmpty}
-        ListFooterComponent={<View style={{ height: Spacing.sm }} />}
-        contentContainerStyle={[
-          styles.transcript,
-          liveMessages.length === 0 ? styles.transcriptEmpty : null,
-        ]}
-        onContentSizeChange={() => scrollToEnd(false)}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-        contentInsetAdjustmentBehavior="automatic"
-      />
+  const listEl = (
+    <FlatList
+      ref={listRef}
+      style={styles.list}
+      data={liveMessages}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <ChatMessageBubble message={item} />}
+      ItemSeparatorComponent={() => <View style={{ height: Spacing.lg + 4 }} />}
+      ListEmptyComponent={listEmpty}
+      ListFooterComponent={<View style={{ height: Spacing.sm }} />}
+      contentContainerStyle={[
+        styles.transcript,
+        liveMessages.length === 0 ? styles.transcriptEmpty : null,
+      ]}
+      onContentSizeChange={() => scrollToEnd(false)}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      contentInsetAdjustmentBehavior="automatic"
+    />
+  )
 
-      <View
-        style={[
-          styles.composerOuter,
-          {
-            backgroundColor: palette.background,
-            borderTopColor: palette.border,
-            paddingBottom: Math.max(insets.bottom, Spacing.sm),
-          },
-        ]}
+  const composerSection = (
+    <View
+      style={[
+        styles.composerOuter,
+        {
+          backgroundColor: palette.background,
+          borderTopColor: palette.border,
+          paddingBottom: Math.max(insets.bottom, Spacing.sm),
+        },
+      ]}
+    >
+      <ChatComposer
+        prompt={prompt}
+        streaming={streaming}
+        webSearch={webSearch}
+        onPromptChange={setPrompt}
+        onToggleWebSearch={setWebSearch}
+        onSend={handleSend}
+        onStop={handleStop}
+      />
+    </View>
+  )
+
+  if (Platform.OS === "web") {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: palette.background }}
+        behavior={undefined}
+        keyboardVerticalOffset={0}
       >
-        <ChatComposer
-          prompt={prompt}
-          streaming={streaming}
-          webSearch={webSearch}
-          onPromptChange={setPrompt}
-          onToggleWebSearch={setWebSearch}
-          onSend={handleSend}
-          onStop={handleStop}
-        />
-      </View>
-    </KeyboardAvoidingView>
+        {listEl}
+        {composerSection}
+      </KeyboardAvoidingView>
+    )
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: palette.background }}>
+      <AssistantAndroidKeyboardMode />
+      {listEl}
+      <KeyboardStickyView style={{ width: "100%" }}>{composerSection}</KeyboardStickyView>
+    </View>
   )
 }
 
@@ -272,8 +298,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transcript: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.lg,
   },
   transcriptEmpty: {
@@ -285,7 +311,17 @@ const styles = StyleSheet.create({
   },
   emptyInner: {
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
+    gap: Spacing.md,
+    alignItems: "center",
+  },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xs,
   },
   emptyTitle: {
     fontSize: FontSize.lg,

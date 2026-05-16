@@ -88,6 +88,10 @@ export async function consumeAssistantStream(
       const { events, remainder } = parseSseChunk(buffer)
       buffer = remainder
       for (const event of events) {
+        if (signal?.aborted) {
+          await reader.cancel().catch(() => undefined)
+          return
+        }
         switch (event.type) {
           case "start":
             handlers.onStart?.(event)
@@ -107,9 +111,10 @@ export async function consumeAssistantStream(
         }
       }
     }
-    if (buffer.trim().length > 0) {
+    if (!signal?.aborted && buffer.trim().length > 0) {
       const { events } = parseSseChunk(buffer + "\n\n")
       for (const event of events) {
+        if (signal?.aborted) return
         if (event.type === "text") handlers.onText?.(event)
         else if (event.type === "done") handlers.onDone?.(event)
         else if (event.type === "error") handlers.onError?.(event.message)

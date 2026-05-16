@@ -3,6 +3,9 @@ import { useAuth } from "@clerk/expo"
 import { fetch as expoFetch } from "expo/fetch"
 
 import { API_URL } from "./config"
+import { createClientRateLimiter, parseRetryAfterSeconds } from "./client-rate-limit"
+
+const apiRateLimiter = createClientRateLimiter()
 
 export type ApiError = {
   status: number
@@ -42,12 +45,23 @@ async function parseError(response: Response): Promise<HttpError> {
         body = JSON.parse(text)
         const candidate =
           typeof body === "object" && body !== null
-            ? (body as { error?: unknown; message?: unknown })
+            ? (body as { error?: unknown; message?: unknown; retryAfter?: number })
             : null
         if (candidate && typeof candidate.error === "string") {
           message = candidate.error
         } else if (candidate && typeof candidate.message === "string") {
           message = candidate.message
+        }
+        if (response.status === 429 && candidate) {
+          const retryAfter = parseRetryAfterSeconds(response, {
+            retryAfter:
+              typeof candidate.retryAfter === "number" ? candidate.retryAfter : undefined,
+            error: typeof candidate.error === "string" ? candidate.error : undefined,
+            message: typeof candidate.message === "string" ? candidate.message : undefined,
+          })
+          if (retryAfter) {
+            message = `${message} Try again in ${retryAfter}s.`
+          }
         }
       } catch {
         body = text
@@ -90,6 +104,7 @@ export function useApi() {
 
   const request = useCallback<AuthedFetch>(
     async (path, options) => {
+      await apiRateLimiter.acquire()
       const token = isSignedIn ? await getToken() : null
       const url = buildUrl(path)
       const headers = buildHeaders(token, options)

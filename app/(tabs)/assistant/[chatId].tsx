@@ -43,6 +43,8 @@ export default function AssistantChatScreen() {
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([])
   const listRef = useRef<FlatList<LiveMessage>>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const ignoreStreamRef = useRef(false)
+  const preferLocalMessagesRef = useRef(false)
 
   const query = useQuery<
     { ok: boolean; chat: AssistantChat; messages: AssistantMessage[] },
@@ -55,13 +57,17 @@ export default function AssistantChatScreen() {
 
   useEffect(() => {
     setLiveMessages([])
+    ignoreStreamRef.current = false
+    preferLocalMessagesRef.current = false
+    abortRef.current?.abort()
   }, [chatId])
 
   useEffect(() => {
+    if (streaming || preferLocalMessagesRef.current) return
     if (query.data?.messages) {
       setLiveMessages(query.data.messages)
     }
-  }, [query.data?.messages])
+  }, [query.data?.messages, streaming])
 
   useEffect(() => {
     return () => {
@@ -119,6 +125,8 @@ export default function AssistantChatScreen() {
 
     setPrompt("")
     setStreaming(true)
+    ignoreStreamRef.current = false
+    preferLocalMessagesRef.current = false
 
     const controller = new AbortController()
     abortRef.current = controller
@@ -139,14 +147,18 @@ export default function AssistantChatScreen() {
       await consumeAssistantStream(
         response,
         {
-          onText: ({ accumulated }) =>
-            updatePending((current) => ({ ...current, contentMarkdown: accumulated })),
+          onText: ({ accumulated }) => {
+            if (ignoreStreamRef.current) return
+            updatePending((current) => ({ ...current, contentMarkdown: accumulated }))
+          },
           onDone: () => {
+            if (ignoreStreamRef.current) return
             updatePending((current) => ({ ...current, pending: false }))
             queryClient.invalidateQueries({ queryKey: ["assistant-chat", chatId] })
             queryClient.invalidateQueries({ queryKey: ["assistant-chats"] })
           },
           onError: (message) => {
+            if (ignoreStreamRef.current) return
             updatePending((current) => ({
               ...current,
               pending: false,
@@ -157,6 +169,7 @@ export default function AssistantChatScreen() {
             Alert.alert("Assistant error", message)
           },
           onRateLimited: (retryAfterSeconds) => {
+            if (ignoreStreamRef.current) return
             updatePending((current) => ({
               ...current,
               pending: false,
@@ -175,6 +188,7 @@ export default function AssistantChatScreen() {
         controller.signal
       )
     } catch (error) {
+      if (ignoreStreamRef.current || controller.signal.aborted) return
       const msg = error instanceof Error ? error.message : "Stream failed."
       updatePending((current) => ({
         ...current,
@@ -188,12 +202,16 @@ export default function AssistantChatScreen() {
   }
 
   function handleStop() {
+    ignoreStreamRef.current = true
+    preferLocalMessagesRef.current = true
     abortRef.current?.abort()
     setStreaming(false)
     updatePending((current) => ({
       ...current,
       pending: false,
-      contentMarkdown: current.contentMarkdown || "_Stopped._",
+      contentMarkdown: current.contentMarkdown.trim()
+        ? current.contentMarkdown
+        : "_Stopped._",
     }))
   }
 

@@ -1,6 +1,14 @@
 # BascyBros Mobile
 
-Companion Expo app for the [`bascybros`](../bascybros) Next.js dashboard. Lets you read and edit your cybersecurity notes, manage tasks, browse the news feed, capture screenshots into Tigris, and chat with the workspace assistant on your phone.
+Companion Expo app for the [BascyBros](https://github.com/0xbasinas/bascybros) Next.js dashboard. Read and edit cybersecurity notes, manage tasks, browse the news feed, upload images to Tigris, and chat with the workspace assistant on your phone.
+
+## Related repos
+
+| Repo | Role |
+|------|------|
+| [bascybros](https://github.com/0xbasinas/bascybros) | Backend (`/api/mobile/*`, uploads, assistant) |
+| [bascybros-chrome-extension](https://github.com/0xbasinas/bascybros-chrome-extension) | Browser capture (uses bridge, not this app) |
+| [bascybros_bridge_server](https://github.com/0xbasinas/bascybros_bridge_server) | Extension API only |
 
 ## Stack
 
@@ -13,7 +21,7 @@ Companion Expo app for the [`bascybros`](../bascybros) Next.js dashboard. Lets y
 
 ## Backend dependency
 
-The app talks to the Next.js backend in `../bascybros` via:
+The app talks to the [bascybros](https://github.com/0xbasinas/bascybros) Next.js backend via:
 
 - `/api/mobile/*` — JSON CRUD for notes, tasks, news, uploads, and `me`
 - `/api/upload` + `/api/mobile/uploads/register` — image upload pipeline
@@ -49,7 +57,7 @@ All requests authenticate with a Clerk bearer token. The same Clerk instance and
 
 ## Backend env / CORS
 
-The Next.js middleware ([`bascybros/proxy.ts`](../bascybros/proxy.ts)) automatically allows CORS preflights from the Expo dev origins (localhost ports, `*.exp.direct`, the `bascybrosmobile://` scheme). To allow another origin, set `MOBILE_ALLOWED_ORIGIN` in the backend env.
+The Next.js middleware (`proxy.ts` in [bascybros](https://github.com/0xbasinas/bascybros)) automatically allows CORS preflights from common Expo dev origins (localhost ports, `*.exp.direct`, the `bascybrosmobile://` scheme). To allow another origin, set `MOBILE_ALLOWED_ORIGIN` in the backend env.
 
 ## Project layout
 
